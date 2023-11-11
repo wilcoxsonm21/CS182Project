@@ -170,6 +170,9 @@ def eval_model(
     """
 
     assert num_eval_examples % batch_size == 0
+    print(model)
+    print(task_name)
+    task_sampler_kwargs = {"basis_dim": 2} # TODO: fix this
     data_sampler = get_data_sampler(data_name, n_dims, **data_sampler_kwargs)
     task_sampler = get_task_sampler(
         task_name, n_dims, batch_size, **task_sampler_kwargs
@@ -180,7 +183,6 @@ def eval_model(
     generating_func = globals()[f"gen_{prompting_strategy}"]
     for i in range(num_eval_examples // batch_size):
         xs, xs_p = generating_func(data_sampler, n_points, batch_size)
-
         metrics = eval_batch(model, task_sampler, xs, xs_p)
         all_metrics.append(metrics)
 
@@ -314,7 +316,7 @@ def get_run_metrics(
         cache_created = os.path.getmtime(save_path)
         if checkpoint_created > cache_created:
             recompute = True
-
+    print(evaluation_kwargs)
     all_metrics = compute_evals(all_models, evaluation_kwargs, save_path, recompute)
     return all_metrics
 
@@ -332,6 +334,9 @@ def conf_to_model_name(conf):
 
 
 def baseline_names(name):
+    print(name)
+    if "kernel" in name:
+        return "Kernel Least Squares"
     if "OLS" in name:
         return "Least Squares"
     if name == "averaging":
@@ -386,6 +391,8 @@ def read_run_dir(run_dir):
                 all_runs[k].append(v)
 
     df = pd.DataFrame(all_runs).sort_values("run_name")
+    print(df.run_name.unique())
+    print(df)
     assert len(df) == len(df.run_name.unique())
     return df
 

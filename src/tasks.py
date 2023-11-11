@@ -60,6 +60,7 @@ def get_task_sampler(
         "quadratic_regression": QuadraticRegression,
         "relu_2nn_regression": Relu2nnRegression,
         "decision_tree": DecisionTree,
+        "kernel_linear_regression": KernelLinearRegression,
     }
     if task_name in task_names_to_classes:
         task_cls = task_names_to_classes[task_name]
@@ -109,7 +110,22 @@ class LinearRegression(Task):
     @staticmethod
     def get_training_metric():
         return mean_squared_error
-
+    
+class KernelLinearRegression(LinearRegression):
+    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1): #TODO only supports axis alligned 
+        """scale: a constant by which to scale the randomly sampled weights."""
+        super(KernelLinearRegression, self).__init__(
+            n_dims*basis_dim, batch_size, pool_dict, seeds, scale
+        )
+        self.basis_dim = basis_dim
+    
+    def evaluate(self, xs_b):
+        print(self.n_dims)
+        expanded_basis = torch.zeros(*xs_b.shape[:-1], xs_b.shape[-1]*self.basis_dim)
+        for i in range(self.basis_dim):
+            expanded_basis[..., i*xs_b.shape[-1]:(i+1)*xs_b.shape[-1]] = xs_b**(i + 1)
+        return super(KernelLinearRegression, self).evaluate(expanded_basis)
+        
 
 class SparseLinearRegression(LinearRegression):
     def __init__(

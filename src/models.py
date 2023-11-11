@@ -28,6 +28,12 @@ def build_model(conf):
 
 def get_relevant_baselines(task_name):
     task_to_baselines = {
+        "kernel_linear_regression": [
+            (KernelLeastSquaresModel, {"basis_dim": 2}), #TODO: Avoid hard coding
+            (LeastSquaresModel, {}),
+            (NNModel, {"n_neighbors": 3}),
+            (AveragingModel, {}),
+        ],
         "linear_regression": [
             (LeastSquaresModel, {}),
             (NNModel, {"n_neighbors": 3}),
@@ -202,6 +208,17 @@ class LeastSquaresModel:
 
         return torch.stack(preds, dim=1)
 
+class KernelLeastSquaresModel(LeastSquaresModel):
+    def __init__(self, basis_dim:int = 1, driver=None):
+        super().__init__(driver)
+        self.basis_dim = basis_dim
+        self.name = f"kernel_{basis_dim}_driver={driver}"
+    
+    def __call__(self, xs, ys, inds=None): #TODO: Not sure what inds do, need to probably fix later
+        expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*self.basis_dim)
+        for i in range(self.basis_dim):
+            expanded_basis[..., i*xs.shape[-1]:(i+1)*xs.shape[-1]] = xs**(i + 1)
+        return super().__call__(expanded_basis, ys, inds)
 
 class AveragingModel:
     def __init__(self):
