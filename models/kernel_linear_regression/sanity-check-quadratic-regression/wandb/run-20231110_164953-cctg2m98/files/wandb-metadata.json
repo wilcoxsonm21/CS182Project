@@ -1,0 +1,27 @@
+{
+    "os": "Linux-6.2.0-34-generic-x86_64-with-glibc2.17",
+    "python": "3.8.12",
+    "heartbeatAt": "2023-11-11T00:49:54.313154",
+    "startedAt": "2023-11-11T00:49:53.530987",
+    "docker": null,
+    "gpu": "NVIDIA GeForce RTX 3090",
+    "gpu_count": 1,
+    "cpu_count": 24,
+    "cuda": null,
+    "args": [
+        "--config",
+        "conf/toy.yaml"
+    ],
+    "state": "running",
+    "program": "train.py",
+    "codePath": "src/train.py",
+    "git": {
+        "remote": "https://github.com/wilcoxsonm21/CS182Project.git",
+        "commit": "f630d193f71256c0fbf941da827c53c8a4ee939e"
+    },
+    "email": "mwilcoxson@berkeley.edu",
+    "root": "/home/mwilcoxson/Code/CS182Project",
+    "host": "bearbear-MS-7E06",
+    "username": "mwilcoxson",
+    "executable": "/home/mwilcoxson/anaconda3/envs/in-context-learning/bin/python"
+}

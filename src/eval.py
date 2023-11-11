@@ -173,6 +173,7 @@ def eval_model(
     print(model)
     print(task_name)
     task_sampler_kwargs = {"basis_dim": 2} # TODO: fix this
+    print(task_sampler_kwargs)
     data_sampler = get_data_sampler(data_name, n_dims, **data_sampler_kwargs)
     task_sampler = get_task_sampler(
         task_name, n_dims, batch_size, **task_sampler_kwargs
@@ -318,6 +319,7 @@ def get_run_metrics(
             recompute = True
     print(evaluation_kwargs)
     all_metrics = compute_evals(all_models, evaluation_kwargs, save_path, recompute)
+    print(all_metrics)
     return all_metrics
 
 

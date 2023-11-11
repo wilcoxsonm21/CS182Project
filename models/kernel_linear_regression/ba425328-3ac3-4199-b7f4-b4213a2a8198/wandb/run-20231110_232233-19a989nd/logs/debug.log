@@ -1,0 +1,25 @@
+2023-11-10 23:22:33,599 INFO    MainThread:81799 [wandb_setup.py:_flush():75] Loading settings from /home/mwilcoxson/.config/wandb/settings
+2023-11-10 23:22:33,599 INFO    MainThread:81799 [wandb_setup.py:_flush():75] Loading settings from /home/mwilcoxson/Code/CS182Project/src/wandb/settings
+2023-11-10 23:22:33,599 INFO    MainThread:81799 [wandb_setup.py:_flush():75] Loading settings from environment variables: {}
+2023-11-10 23:22:33,599 INFO    MainThread:81799 [wandb_setup.py:_flush():75] Inferring run settings from compute environment: {'program_relpath': 'src/train.py', 'program': 'train.py'}
+2023-11-10 23:22:33,599 INFO    MainThread:81799 [wandb_init.py:_log_setup():405] Logging user logs to ../models/kernel_linear_regression/ba425328-3ac3-4199-b7f4-b4213a2a8198/wandb/run-20231110_232233-19a989nd/logs/debug.log
+2023-11-10 23:22:33,599 INFO    MainThread:81799 [wandb_init.py:_log_setup():406] Logging internal logs to ../models/kernel_linear_regression/ba425328-3ac3-4199-b7f4-b4213a2a8198/wandb/run-20231110_232233-19a989nd/logs/debug-internal.log
+2023-11-10 23:22:33,599 INFO    MainThread:81799 [wandb_init.py:init():439] calling init triggers
+2023-11-10 23:22:33,599 INFO    MainThread:81799 [wandb_init.py:init():442] wandb.init called with sweep_config: {}
+config: {'model': {'family': 'gpt2', 'n_embd': 256, 'n_layer': 12, 'n_head': 8, 'n_positions': 41, 'n_dims': 5}, 'wandb': {'project': 'in-context-training', 'entity': 'cs182-project', 'notes': '', 'log_every_steps': 100, 'name': 'kernel_linear_regression_toy'}, 'config': 'conf/toy_2.yaml', 'training': {'curriculum': {'dims': {'start': 5, 'interval': 2000, 'end': 5, 'inc': 1}, 'points': {'interval': 2000, 'end': 41, 'inc': 2, 'start': 11}}, 'task': 'kernel_linear_regression', 'task_kwargs': {'basis_dim': 4}, 'num_tasks': None, 'resume_id': None, 'data': 'gaussian', 'train_steps': 500001, 'learning_rate': 0.0001, 'save_every_steps': 1000, 'num_training_examples': None, 'batch_size': 64, 'keep_every_steps': 100000}, 'test_run': False, 'out_dir': '../models/kernel_linear_regression/ba425328-3ac3-4199-b7f4-b4213a2a8198', 'inherit': ['/home/mwilcoxson/Code/CS182Project/src/conf/models/standard.yaml', '/home/mwilcoxson/Code/CS182Project/src/conf/wandb.yaml']}
+2023-11-10 23:22:33,599 INFO    MainThread:81799 [wandb_init.py:init():492] starting backend
+2023-11-10 23:22:33,599 INFO    MainThread:81799 [backend.py:_multiprocessing_setup():99] multiprocessing start_methods=fork,spawn,forkserver, using: spawn
+2023-11-10 23:22:33,603 INFO    MainThread:81799 [backend.py:ensure_launched():219] starting backend process...
+2023-11-10 23:22:33,605 INFO    MainThread:81799 [backend.py:ensure_launched():224] started backend process with pid: 81867
+2023-11-10 23:22:33,606 INFO    MainThread:81799 [wandb_init.py:init():501] backend started and connected
+2023-11-10 23:22:33,608 INFO    MainThread:81799 [wandb_init.py:init():565] updated telemetry
+2023-11-10 23:22:33,614 INFO    MainThread:81799 [wandb_init.py:init():596] communicating run to backend with 30 second timeout
+2023-11-10 23:22:34,355 INFO    MainThread:81799 [wandb_run.py:_on_init():1759] communicating current version
+2023-11-10 23:22:34,410 INFO    MainThread:81799 [wandb_run.py:_on_init():1763] got version response upgrade_message: "wandb version 0.16.0 is available!  To upgrade, please run:\n $ pip install wandb --upgrade"
+
+2023-11-10 23:22:34,410 INFO    MainThread:81799 [wandb_init.py:init():625] starting run threads in backend
+2023-11-10 23:22:35,259 INFO    MainThread:81799 [wandb_run.py:_console_start():1733] atexit reg
+2023-11-10 23:22:35,259 INFO    MainThread:81799 [wandb_run.py:_redirect():1606] redirect: SettingsConsole.REDIRECT
+2023-11-10 23:22:35,259 INFO    MainThread:81799 [wandb_run.py:_redirect():1611] Redirecting console.
+2023-11-10 23:22:35,260 INFO    MainThread:81799 [wandb_run.py:_redirect():1667] Redirects installed.
+2023-11-10 23:22:35,260 INFO    MainThread:81799 [wandb_init.py:init():664] run started, returning control to user process
