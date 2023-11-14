@@ -13,10 +13,10 @@ palette = sns.color_palette("colorblind")
 relevant_model_names = {
     "kernel_linear_regression": [
         "Transformer",
-        "Kernel Least Squares",
+        "Kernel Least Squares 2",
+        "Kernel Least Squares 3",
+        "Kernel Least Squares 4",
         "Least Squares",
-        "3-Nearest Neighbors",
-        "Averaging",
     ],
     "linear_regression": [
         "Transformer",
@@ -88,6 +88,7 @@ def collect_results(run_dir, df, valid_row=None, rename_eval=None, rename_model=
         print(metrics)
         for eval_name, results in sorted(metrics.items()):
             processed_results = {}
+            print(eval_name)
             for model_name, m in results.items():
                 if "gpt2" in model_name in model_name:
                     model_name = r.model
@@ -95,6 +96,7 @@ def collect_results(run_dir, df, valid_row=None, rename_eval=None, rename_model=
                         model_name = rename_model(model_name, r)
                 else:
                     model_name = baseline_names(model_name)
+                    print(model_name)
                 m_processed = {}
                 n_dims = conf.model.n_dims
 

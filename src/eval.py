@@ -172,7 +172,7 @@ def eval_model(
     assert num_eval_examples % batch_size == 0
     print(model)
     print(task_name)
-    task_sampler_kwargs = {"basis_dim": 2} # TODO: fix this
+    task_sampler_kwargs = {"basis_dim": 1} # TODO: fix this
     print(task_sampler_kwargs)
     data_sampler = get_data_sampler(data_name, n_dims, **data_sampler_kwargs)
     task_sampler = get_task_sampler(
@@ -338,7 +338,7 @@ def conf_to_model_name(conf):
 def baseline_names(name):
     print(name)
     if "kernel" in name:
-        return "Kernel Least Squares"
+        return "Kernel Least Squares " + name.split("_")[1]
     if "OLS" in name:
         return "Least Squares"
     if name == "averaging":

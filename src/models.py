@@ -7,6 +7,7 @@ from sklearn.linear_model import LogisticRegression, Lasso
 import warnings
 from sklearn import tree
 import xgboost as xgb
+import math
 
 from base_models import NeuralNetwork, ParallelNetworks
 
@@ -29,7 +30,9 @@ def build_model(conf):
 def get_relevant_baselines(task_name):
     task_to_baselines = {
         "kernel_linear_regression": [
-            (KernelLeastSquaresModel, {"basis_dim": 2}), #TODO: Avoid hard coding
+            (KernelLeastSquaresModel, {"basis_dim": 2}),
+            (KernelLeastSquaresModel, {"basis_dim": 3}),
+            (KernelLeastSquaresModel, {"basis_dim": 4}), #TODO: Avoid hard coding
             (LeastSquaresModel, {}),
             (NNModel, {"n_neighbors": 3}),
             (AveragingModel, {}),
@@ -217,8 +220,22 @@ class KernelLeastSquaresModel(LeastSquaresModel):
     def __call__(self, xs, ys, inds=None): #TODO: Not sure what inds do, need to probably fix later
         expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*self.basis_dim)
         for i in range(self.basis_dim):
-            expanded_basis[..., i*xs.shape[-1]:(i+1)*xs.shape[-1]] = xs**(i + 1)
+            # We want to normalize the input so the output has the same variance indepedent of basis dimension
+            # This involves a coefficient that is inverse of variance for each power of x
+            # And another coefficient that is inverse of sqrt of variance for total basis dim since variance is additive
+            expanded_basis[..., i*xs.shape[-1]:(i+1)*xs.shape[-1]] = (1/math.sqrt(self.basis_dim))*(1/math.sqrt(self.getNthDegreeVariance(i + 1)))*(xs**(i + 1))
         return super().__call__(expanded_basis, ys, inds)
+
+    # Returns the expectation of X^n where X is a standard normal random variable
+    def getNthDegreeExpectation(self, n):
+        if n % 2 == 0:
+            return math.factorial(n) / (2**(n/2) * math.factorial(n/2))
+        else:
+            return 0
+    
+    # Returns the variance of X^n where X is a standard normal random variable
+    def getNthDegreeVariance(self, n):
+        return self.getNthDegreeExpectation(2*n) - self.getNthDegreeExpectation(n)**2       
 
 class AveragingModel:
     def __init__(self):

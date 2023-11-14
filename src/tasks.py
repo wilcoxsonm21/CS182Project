@@ -126,10 +126,23 @@ class KernelLinearRegression(LinearRegression):
         basis_dim = random + 1
         expanded_basis = torch.zeros(*xs_b.shape[:-1], xs_b.shape[-1]*basis_dim)
         for i in range(basis_dim):
-            expanded_basis[..., i*xs_b.shape[-1]:(i+1)*xs_b.shape[-1]] = xs_b**(i + 1)
+            # We want to normalize the input so the output has the same variance indepedent of basis dimension
+            # This involves a coefficient that is inverse of variance for each power of x
+            # And another coefficient that is inverse of sqrt of variance for total basis dim since variance is additive
+            expanded_basis[..., i*xs_b.shape[-1]:(i+1)*xs_b.shape[-1]] = (1/math.sqrt(basis_dim))*(1/math.sqrt(self.getNthDegreeVariance(i + 1)))*(xs_b**(i + 1))
         expanded_basis.to(xs_b.device)
         return self.tasks[random].evaluate(expanded_basis)
-        
+    
+    # Returns the expectation of X^n where X is a standard normal random variable
+    def getNthDegreeExpectation(self, n):
+        if n % 2 == 0:
+            return math.factorial(n) / (2**(n/2) * math.factorial(n/2))
+        else:
+            return 0
+    
+    # Returns the variance of X^n where X is a standard normal random variable
+    def getNthDegreeVariance(self, n):
+        return self.getNthDegreeExpectation(2*n) - self.getNthDegreeExpectation(n)**2        
 
 class SparseLinearRegression(LinearRegression):
     def __init__(
