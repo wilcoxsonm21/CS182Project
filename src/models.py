@@ -212,10 +212,11 @@ class LeastSquaresModel:
         return torch.stack(preds, dim=1)
 
 class KernelLeastSquaresModel(LeastSquaresModel):
-    def __init__(self, basis_dim:int = 1, driver=None):
+    def __init__(self, basis_dim:int = 1, driver=None, random=True):
         super().__init__(driver)
         self.basis_dim = basis_dim
         self.name = f"kernel_{basis_dim}_driver={driver}"
+        self.random = random
     
     def __call__(self, xs, ys, inds=None): #TODO: Not sure what inds do, need to probably fix later
         expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*self.basis_dim)
