@@ -125,7 +125,9 @@ class ChebyshevKernelLinearRegression(Task):
         #print(basis_dim)
         super(ChebyshevKernelLinearRegression, self).__init__(n_dims, batch_size, pool_dict, seeds)
         self.basis_dim = basis_dim
-        
+        self.highest_degree = 3
+        self.diff_poly_degree = True 
+        self.lowest_degree = 1
         self.chebyshev_coeffs = torch.tensor([
             [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -148,7 +150,9 @@ class ChebyshevKernelLinearRegression(Task):
         
     def evaluate(self, xs_b):
         #print("xs_b: ", xs_b.shape)
-       # print(xs_b)
+        # print(xs_b)
+
+        degree = torch.randint(1, self.highest_degree + 1, size=(self.b_size, 1))
         expanded_basis = torch.zeros(*xs_b.shape[:-1], xs_b.shape[-1]*(self.basis_dim + 1))
         for i in range(self.basis_dim + 1): #we are also adding the constant term
             # We want to normalize the input so the output has the same variance indepedent of basis dimension
@@ -156,8 +160,18 @@ class ChebyshevKernelLinearRegression(Task):
             # And another coefficient that is inverse of sqrt of variance for total basis dim since variance is additive
             expanded_basis[..., i*xs_b.shape[-1]:(i+1)*xs_b.shape[-1]] = xs_b**i
         expanded_basis.to(xs_b.device)
+
+        
+        #64 with the degree 
+        #1024 with the degree
+        mask = torch.ones(expanded_basis.shape[0], self.highest_degree, dtype=torch.float32)
+        indices = torch.randint(self.lowest_degree, self.highest_degree, (expanded_basis.shape[0], 1))    # Note the dimensions
+
+        mask[torch.arange(0, self.highest_degree, dtype=torch.float32).repeat(expanded_basis.shape[0],1) >= indices] = 0
+        # import ipdb;ipdb.set_trace()
         w_b = self.w_b.to(xs_b.device)
-        ys_b = (expanded_basis @ w_b)[:, :, 0]
+        masked_w_b = torch.mul(w_b[:,:,0], mask)[:, :, np.newaxis]
+        ys_b = (expanded_basis @ masked_w_b)[:, :, 0]
         #print("max: ", torch.max(ys_b))
         #print("min: ", torch.min(ys_b))
         assert torch.max(ys_b) <= 1 and torch.min(ys_b) >= -1

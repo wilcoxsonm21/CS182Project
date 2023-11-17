@@ -52,6 +52,7 @@ def train(model, args):
     n_dims = model.n_dims
     bsize = args.training.batch_size
     data_sampler = get_data_sampler(args.training.data, n_dims=n_dims)
+    import ipdb;ipdb.set_trace()
     task_sampler = get_task_sampler(
         args.training.task,
         n_dims,
@@ -82,6 +83,7 @@ def train(model, args):
             **data_sampler_args,
         )
         task = task_sampler(**task_sampler_args)
+        import ipdb;ipdb.set_trace()
         ys = task.evaluate(xs)
 
         loss_func = task.get_training_metric()
