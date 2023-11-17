@@ -30,12 +30,12 @@ def build_model(conf):
 def get_relevant_baselines(task_name):
     task_to_baselines = {
         "kernel_linear_regression": [
-            (KernelLeastSquaresModel, {"basis_dim": 2}),
-            (KernelLeastSquaresModel, {"basis_dim": 3}),
+            #(KernelLeastSquaresModel, {"basis_dim": 2}),
+            #(KernelLeastSquaresModel, {"basis_dim": 3}),
             (KernelLeastSquaresModel, {"basis_dim": 4}), #TODO: Avoid hard coding
-            (LeastSquaresModel, {}),
-            (NNModel, {"n_neighbors": 3}),
-            (AveragingModel, {}),
+            (KernelLeastSquaresModel, {"basis_dim": 1}),
+            #(NNModel, {"n_neighbors": 3}),
+            #(AveragingModel, {}),
         ],
         "linear_regression": [
             (LeastSquaresModel, {}),
@@ -205,7 +205,8 @@ class LeastSquaresModel:
             ws, _, _, _ = torch.linalg.lstsq(
                 train_xs, train_ys.unsqueeze(2), driver=self.driver
             )
-
+            print(ws)
+            print(ws.shape)
             pred = test_x @ ws
             preds.append(pred[:, 0, 0])
 
@@ -219,12 +220,15 @@ class KernelLeastSquaresModel(LeastSquaresModel):
         self.random = random
     
     def __call__(self, xs, ys, inds=None): #TODO: Not sure what inds do, need to probably fix later
-        expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*self.basis_dim)
-        for i in range(self.basis_dim):
+        expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*(self.basis_dim + 1))
+        for i in range(self.basis_dim + 1): #we are also adding the constant term
             # We want to normalize the input so the output has the same variance indepedent of basis dimension
             # This involves a coefficient that is inverse of variance for each power of x
             # And another coefficient that is inverse of sqrt of variance for total basis dim since variance is additive
-            expanded_basis[..., i*xs.shape[-1]:(i+1)*xs.shape[-1]] = (1/math.sqrt(self.basis_dim))*(1/math.sqrt(self.getNthDegreeVariance(i + 1)))*(xs**(i + 1))
+            expanded_basis[..., i*xs.shape[-1]:(i+1)*xs.shape[-1]] = xs**i
+        print(xs.shape, expanded_basis.shape)
+        print(xs)
+        print(expanded_basis)
         return super().__call__(expanded_basis, ys, inds)
 
     # Returns the expectation of X^n where X is a standard normal random variable

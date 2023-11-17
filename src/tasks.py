@@ -142,8 +142,12 @@ class ChebyshevKernelLinearRegression(Task):
         ], dtype=torch.float)
         
         self.chebyshev_coeffs = self.chebyshev_coeffs[:self.basis_dim + 1, :self.basis_dim + 1]
-        combinations = torch.rand(size=(self.b_size, self.basis_dim + 1))
-        combinations /= torch.sum(combinations, dim=1).unsqueeze(1)
+        #combinations = torch.randn(size=(self.b_size, self.basis_dim + 1))
+        studentsT = torch.distributions.StudentT(1)
+        combinations = studentsT.sample(sample_shape=(self.b_size, self.basis_dim + 1))
+        combinations /= torch.sum(torch.abs(combinations), dim=1).unsqueeze(1)
+        #combinations -= 1/combinations.shape[1]
+        #print(combinations)
         self.w_b = (combinations @ self.chebyshev_coeffs).unsqueeze(2)
         
     def evaluate(self, xs_b):
@@ -160,8 +164,8 @@ class ChebyshevKernelLinearRegression(Task):
         ys_b = (expanded_basis @ w_b)[:, :, 0]
         #print("max: ", torch.max(ys_b))
         #print("min: ", torch.min(ys_b))
-        assert torch.max(ys_b) <= 1 and torch.min(ys_b) >= -1
-        return ys_b
+        assert torch.max(ys_b) <= 2 and torch.min(ys_b) >= -2
+        return ys_b + torch.randn_like(ys_b) * 0.1
 
     @staticmethod
     def generate_pool_dict(n_dims, num_tasks, **kwargs):  # ignore extra args
