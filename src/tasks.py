@@ -150,8 +150,9 @@ class ChebyshevKernelLinearRegression(Task):
 
         if self.diff_poly_degree:
             mask = torch.ones(combinations.shape[0], combinations.shape[-1], dtype=torch.float32)
-            indices = torch.randint(self.lowest_degree, self.highest_degree, (combinations.shape[0], 1))    # Note the dimensions
+            indices = torch.randint(self.lowest_degree, self.highest_degree + 1, (combinations.shape[0], 1))    # Note the dimensions
             mask[torch.arange(0, combinations.shape[-1], dtype=torch.float32).repeat(combinations.shape[0],1) >= indices] = 0
+            import ipdb;ipdb.set_trace()
             combinations = torch.mul(combinations, mask)
 
         combinations /= torch.sum(torch.abs(combinations), dim=1).unsqueeze(1)
