@@ -120,14 +120,14 @@ class LinearRegression(Task):
         return mean_squared_error
 
 class ChebyshevKernelLinearRegression(Task):
-    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1):
+    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1, different_degrees=False, lowest_degree=1, highest_degree=1):
         """scale: a constant by which to scale the randomly sampled weights."""
         #print(basis_dim)
         super(ChebyshevKernelLinearRegression, self).__init__(n_dims, batch_size, pool_dict, seeds)
         self.basis_dim = basis_dim
-        self.highest_degree = 3
-        self.diff_poly_degree = True 
-        self.lowest_degree = 1
+        self.highest_degree = highest_degree
+        self.diff_poly_degree = different_degrees 
+        self.lowest_degree = lowest_degree
         self.chebyshev_coeffs = torch.tensor([
             [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -147,9 +147,15 @@ class ChebyshevKernelLinearRegression(Task):
         #combinations = torch.randn(size=(self.b_size, self.basis_dim + 1))
         studentsT = torch.distributions.StudentT(1)
         combinations = studentsT.sample(sample_shape=(self.b_size, self.basis_dim + 1))
+
+        if self.diff_poly_degree:
+            mask = torch.ones(combinations.shape[0], combinations.shape[-1], dtype=torch.float32)
+            indices = torch.randint(self.lowest_degree, self.highest_degree, (combinations.shape[0], 1))    # Note the dimensions
+            mask[torch.arange(0, combinations.shape[-1], dtype=torch.float32).repeat(combinations.shape[0],1) >= indices] = 0
+            combinations = torch.mul(combinations, mask)
+
         combinations /= torch.sum(torch.abs(combinations), dim=1).unsqueeze(1)
-        #combinations -= 1/combinations.shape[1]
-        #print(combinations)
+
         self.w_b = (combinations @ self.chebyshev_coeffs).unsqueeze(2)
         
     def evaluate(self, xs_b):
@@ -166,22 +172,12 @@ class ChebyshevKernelLinearRegression(Task):
         expanded_basis.to(xs_b.device)
 
         
-        #64 with the degree 
-        #1024 with the degree
-        # import ipdb;ipdb.set_trace()
-        mask = torch.ones(expanded_basis.shape[0], expanded_basis.shape[-1], dtype=torch.float32)
-        indices = torch.randint(self.lowest_degree, self.highest_degree, (expanded_basis.shape[0], 1))    # Note the dimensions
-
-        mask[torch.arange(0, expanded_basis.shape[-1], dtype=torch.float32).repeat(expanded_basis.shape[0],1) >= indices] = 0
-        # import ipdb;ipdb.set_trace()
+        
         w_b = self.w_b.to(xs_b.device)
-        # import ipdb;ipdb.set_trace()
-        masked_w_b = torch.mul(w_b[:,:,0], mask)[:, :, np.newaxis]
-        ys_b = (expanded_basis @ masked_w_b)[:, :, 0]
-        #print("max: ", torch.max(ys_b))
-        #print("min: ", torch.min(ys_b))
-        # import ipdb;ipdb.set_trace()
-        assert torch.max(ys_b) <= 3 and torch.min(ys_b) >= -3
+ 
+        ys_b = (expanded_basis @ w_b)[:, :, 0]
+
+        assert torch.max(ys_b) <= 1 and torch.min(ys_b) >= -1
         return ys_b + torch.randn_like(ys_b) * 0.1
 
     @staticmethod
