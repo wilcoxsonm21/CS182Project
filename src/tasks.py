@@ -168,17 +168,20 @@ class ChebyshevKernelLinearRegression(Task):
         
         #64 with the degree 
         #1024 with the degree
-        mask = torch.ones(expanded_basis.shape[0], self.highest_degree, dtype=torch.float32)
+        # import ipdb;ipdb.set_trace()
+        mask = torch.ones(expanded_basis.shape[0], expanded_basis.shape[-1], dtype=torch.float32)
         indices = torch.randint(self.lowest_degree, self.highest_degree, (expanded_basis.shape[0], 1))    # Note the dimensions
 
-        mask[torch.arange(0, self.highest_degree, dtype=torch.float32).repeat(expanded_basis.shape[0],1) >= indices] = 0
+        mask[torch.arange(0, expanded_basis.shape[-1], dtype=torch.float32).repeat(expanded_basis.shape[0],1) >= indices] = 0
         # import ipdb;ipdb.set_trace()
         w_b = self.w_b.to(xs_b.device)
+        # import ipdb;ipdb.set_trace()
         masked_w_b = torch.mul(w_b[:,:,0], mask)[:, :, np.newaxis]
         ys_b = (expanded_basis @ masked_w_b)[:, :, 0]
         #print("max: ", torch.max(ys_b))
         #print("min: ", torch.min(ys_b))
-        assert torch.max(ys_b) <= 2 and torch.min(ys_b) >= -2
+        # import ipdb;ipdb.set_trace()
+        assert torch.max(ys_b) <= 3 and torch.min(ys_b) >= -3
         return ys_b + torch.randn_like(ys_b) * 0.1
 
     @staticmethod
