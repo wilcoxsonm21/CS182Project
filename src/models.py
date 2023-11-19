@@ -32,7 +32,7 @@ def get_relevant_baselines(task_name):
         "kernel_linear_regression": [
             #(KernelLeastSquaresModel, {"basis_dim": 2}),
             #(KernelLeastSquaresModel, {"basis_dim": 3}),
-            (KernelLeastSquaresModel, {"basis_dim": 4}), #TODO: Avoid hard coding
+            (KernelLeastSquaresModel, {"basis_dim": 8}), #TODO: Avoid hard coding
             (KernelLeastSquaresModel, {"basis_dim": 1}),
             #(NNModel, {"n_neighbors": 3}),
             #(AveragingModel, {}),
@@ -194,7 +194,8 @@ class LeastSquaresModel:
                 raise ValueError("inds contain indices where xs and ys are not defined")
 
         preds = []
-
+        print(xs.shape)
+        
         for i in inds:
             if i == 0:
                 preds.append(torch.zeros_like(ys[:, 0]))  # predict zero for first point
@@ -202,14 +203,16 @@ class LeastSquaresModel:
             train_xs, train_ys = xs[:, :i], ys[:, :i]
             test_x = xs[:, i : i + 1]
 
+            #if i >= train_xs.shape[-1]:
+            print(i, "      ", sum(torch.linalg.matrix_rank(train_xs) == min(train_xs.shape[-1], i))/1000)
+                #assert (torch.linalg.matrix_rank(train_xs) == train_xs.shape[-1]).all(), "The data matrix formed by the first x_dim points is not invertible."
+
             ws, _, _, _ = torch.linalg.lstsq(
                 train_xs, train_ys.unsqueeze(2), driver=self.driver
             )
-            print(ws)
-            print(ws.shape)
             pred = test_x @ ws
             preds.append(pred[:, 0, 0])
-
+        1/0
         return torch.stack(preds, dim=1)
 
 class KernelLeastSquaresModel(LeastSquaresModel):
@@ -226,21 +229,11 @@ class KernelLeastSquaresModel(LeastSquaresModel):
             # This involves a coefficient that is inverse of variance for each power of x
             # And another coefficient that is inverse of sqrt of variance for total basis dim since variance is additive
             expanded_basis[..., i*xs.shape[-1]:(i+1)*xs.shape[-1]] = xs**i
-        print(xs.shape, expanded_basis.shape)
-        print(xs)
-        print(expanded_basis)
+        #print(xs.shape, expanded_basis.shape)
+        #print(xs)
+        #print(expanded_basis)
+        #print("MODEL")
         return super().__call__(expanded_basis, ys, inds)
-
-    # Returns the expectation of X^n where X is a standard normal random variable
-    def getNthDegreeExpectation(self, n):
-        if n % 2 == 0:
-            return math.factorial(n) / (2**(n/2) * math.factorial(n/2))
-        else:
-            return 0
-    
-    # Returns the variance of X^n where X is a standard normal random variable
-    def getNthDegreeVariance(self, n):
-        return self.getNthDegreeExpectation(2*n) - self.getNthDegreeExpectation(n)**2       
 
 class AveragingModel:
     def __init__(self):

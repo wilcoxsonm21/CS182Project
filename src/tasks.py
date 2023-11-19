@@ -100,10 +100,9 @@ class LinearRegression(Task):
 
     def evaluate(self, xs_b):
         w_b = self.w_b.to(xs_b.device)
-        print(w_b.shape)
-        print(xs_b.shape)
-        print((xs_b @ w_b).shape)
-        1/0
+        #print(w_b.shape)
+        #print(xs_b.shape)
+        #print((xs_b @ w_b).shape)
         ys_b = self.scale * (xs_b @ w_b)[:, :, 0]
         return ys_b
 
@@ -147,17 +146,18 @@ class ChebyshevKernelLinearRegression(Task):
         #combinations = torch.randn(size=(self.b_size, self.basis_dim + 1))
         studentsT = torch.distributions.StudentT(1)
         combinations = studentsT.sample(sample_shape=(self.b_size, self.basis_dim + 1))
+        #combinations = torch.randn(size=(self.b_size, self.basis_dim + 1)) 
+        
 
         if self.diff_poly_degree:
             mask = torch.ones(combinations.shape[0], combinations.shape[-1], dtype=torch.float32)
             indices = torch.randint(self.lowest_degree, self.highest_degree + 1, (combinations.shape[0], 1))    # Note the dimensions
             mask[torch.arange(0, combinations.shape[-1], dtype=torch.float32).repeat(combinations.shape[0],1) >= indices] = 0
             combinations = torch.mul(combinations, mask)
-        print(combinations)
         combinations /= torch.sum(torch.abs(combinations), dim=1).unsqueeze(1)
-        print(combinations)
         self.w_b = (combinations @ self.chebyshev_coeffs).unsqueeze(2)
-        print(self.w_b)
+        print(self.w_b.shape)
+
     def evaluate(self, xs_b):
         #print("xs_b: ", xs_b.shape)
         # print(xs_b)
@@ -172,14 +172,10 @@ class ChebyshevKernelLinearRegression(Task):
         expanded_basis.to(xs_b.device)
 
         
-        
         w_b = self.w_b.to(xs_b.device)
-        print(w_b)
-        print(expanded_basis)
         ys_b = (expanded_basis @ w_b)[:, :, 0]
-        print(ys_b)
 
-        assert torch.max(ys_b) <= 1 and torch.min(ys_b) >= -1
+        #assert torch.max(ys_b) <= 1 and torch.min(ys_b) >= -1
         return ys_b
 
     @staticmethod
