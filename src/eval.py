@@ -168,12 +168,13 @@ def eval_model(
        - num_eval_examples: total number of examples to evaluate on
        - **sampler_kwargs: remaining arguments to pass directly to the sampler
     """
-
+    batch_size = 1000
+    num_eval_examples = 1000
     assert num_eval_examples % batch_size == 0
-    print(model)
-    print(task_name)
-    task_sampler_kwargs = {"basis_dim": 4} # TODO: fix this
-    print(task_sampler_kwargs)
+    #print(model)
+    #print(task_name)
+    task_sampler_kwargs = {"basis_dim": 8,} # TODO: fix this
+    #print(task_sampler_kwargs)
     data_sampler = get_data_sampler(data_name, n_dims, **data_sampler_kwargs)
     task_sampler = get_task_sampler(
         task_name, n_dims, batch_size, **task_sampler_kwargs

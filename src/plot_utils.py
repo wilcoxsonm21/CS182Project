@@ -15,7 +15,7 @@ relevant_model_names = {
         "Transformer",
         #"Kernel Least Squares 2",
         #"Kernel Least Squares 3",
-        "Kernel Least Squares 4",
+        "Kernel Least Squares 8",
         "Kernel Least Squares 1",
     ],
     "linear_regression": [
