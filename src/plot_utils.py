@@ -15,7 +15,7 @@ relevant_model_names = {
         "Transformer",
         #"Kernel Least Squares 2",
         #"Kernel Least Squares 3",
-        "Kernel Least Squares 8",
+        "Kernel Least Squares 3",
         "Kernel Least Squares 1",
     ],
     "linear_regression": [
@@ -64,7 +64,7 @@ def basic_plot(metrics, models=None, trivial=1.0):
     ax.set_xlabel("in-context examples")
     ax.set_ylabel("squared error")
     #ax.set_xlim(-1, len(low) + 0.1)
-    ax.set_ylim(-0.1, 1)
+    ax.set_ylim(-0.1, 2)
 
     legend = ax.legend(loc="upper left", bbox_to_anchor=(1, 1))
     fig.set_size_inches(4, 3)

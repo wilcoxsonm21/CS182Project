@@ -32,7 +32,7 @@ def get_relevant_baselines(task_name):
         "kernel_linear_regression": [
             #(KernelLeastSquaresModel, {"basis_dim": 2}),
             #(KernelLeastSquaresModel, {"basis_dim": 3}),
-            (KernelLeastSquaresModel, {"basis_dim": 8}), #TODO: Avoid hard coding
+            (KernelLeastSquaresModel, {"basis_dim": 3}), #TODO: Avoid hard coding
             (KernelLeastSquaresModel, {"basis_dim": 1}),
             #(NNModel, {"n_neighbors": 3}),
             #(AveragingModel, {}),
@@ -194,9 +194,6 @@ class LeastSquaresModel:
                 raise ValueError("inds contain indices where xs and ys are not defined")
 
         preds = []
-        print(xs.shape)
-        asert
-        1/0
         for i in inds:
             if i == 0:
                 preds.append(torch.zeros_like(ys[:, 0]))  # predict zero for first point
