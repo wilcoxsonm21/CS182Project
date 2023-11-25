@@ -4,7 +4,7 @@ import torch
 
 import numpy as np
 import numpy as np
-
+from models import *
 
 def squared_error(ys_pred, ys):
     return (ys - ys_pred).square()
@@ -103,7 +103,6 @@ class LinearRegression(Task):
         print(w_b.shape)
         print(xs_b.shape)
         print((xs_b @ w_b).shape)
-        1/0
         ys_b = self.scale * (xs_b @ w_b)[:, :, 0]
         return ys_b
 
@@ -151,12 +150,15 @@ class ChebyshevKernelLinearRegression(Task):
         if self.diff_poly_degree:
             mask = torch.ones(combinations.shape[0], combinations.shape[-1], dtype=torch.float32)
             indices = torch.randint(self.lowest_degree, self.highest_degree + 1, (combinations.shape[0], 1))    # Note the dimensions
+            self.indices = indices
             mask[torch.arange(0, combinations.shape[-1], dtype=torch.float32).repeat(combinations.shape[0],1) >= indices] = 0
             combinations = torch.mul(combinations, mask)
+            self.mask = mask
         #print(combinations)
         #combinations /= torch.sum(torch.abs(combinations), dim=1).unsqueeze(1)
         #print(combinations)
         self.w_b = (combinations @ self.chebyshev_coeffs).unsqueeze(2)
+        self.baselines = [ChebyshevKernelLeastSquaresModel(basis_dim=i) for i in range(1, self.basis_dim + 1)]
         #print(self.w_b)
     def evaluate(self, xs_b):
         #print("xs_b: ", xs_b.shape)
@@ -180,7 +182,7 @@ class ChebyshevKernelLinearRegression(Task):
         #print(ys_b)
 
         #assert torch.max(ys_b) <= 1 and torch.min(ys_b) >= -1
-        return ys_b
+        return ys_b 
 
     @staticmethod
     def generate_pool_dict(n_dims, num_tasks, **kwargs):  # ignore extra args
@@ -190,9 +192,11 @@ class ChebyshevKernelLinearRegression(Task):
     def get_metric():
         return squared_error
 
-    @staticmethod
-    def get_training_metric():
-        return mean_squared_error
+    def get_training_loss(self, y_pred, xs, ys):
+        ys = torch.stack([self.baselines[self.indices[i] - 1].__call__(xs[i].unsqueeze(0), ys[i].unsqueeze(0)).squeeze() for i in range(ys.shape[0])], dim=0).to(y_pred.device)
+        l = (ys - y_pred).square()
+        l_mean = l.mean()
+        return l_mean
     
 class KernelLinearRegression(LinearRegression):
     def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1): #TODO only supports axis alligned 

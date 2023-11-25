@@ -12,7 +12,8 @@ import yaml
 import models
 from samplers import get_data_sampler, sample_transformation
 from tasks import get_task_sampler
-
+from models import get_relevant_baselines_for_degree
+import ipdb
 
 def get_model_from_run(run_path, step=-1, only_conf=False):
     config_path = os.path.join(run_path, "config.yaml")
@@ -171,7 +172,6 @@ def eval_model(
     assert num_eval_examples % batch_size == 0
     #print(model)
     #print(task_name)
-    task_sampler_kwargs = {"basis_dim": 3,} # TODO: fix this
     #print(task_sampler_kwargs)
     data_sampler = get_data_sampler(data_name, n_dims, **data_sampler_kwargs)
     task_sampler = get_task_sampler(
@@ -288,19 +288,37 @@ def compute_evals(all_models, evaluation_kwargs, save_path=None, recompute=False
 
     return all_metrics
 
+def compute_evals_basis(transformer_model, evaluation_kwargs, save_path=None, recompute=False):
+    try:
+        with open(save_path) as fp:
+            all_metrics = json.load(fp)
+    except Exception:
+        all_metrics = {}
+    standard_args = evaluation_kwargs["standard"]
+    for i in range(1, 12):
+        metrics = {}
+        baselines =  get_relevant_baselines_for_degree(i)
+        baselines += [transformer_model]
+        for model in baselines:
+            if model.name in metrics and not recompute:
+                continue
+            standard_args["task_sampler_kwargs"] = {"basis_dim": i,} # TODO: fix this]
+            metrics[model.name] = eval_model(model, **standard_args)
+        all_metrics["degree-" + str(i)] = metrics
+
+    if save_path is not None:
+        with open(save_path, "w") as fp:
+            json.dump(all_metrics, fp, indent=2)
+
+    return all_metrics
+
+
 
 def get_run_metrics(
     run_path, step=-1, cache=True, skip_model_load=False, skip_baselines=False
 ):
-    if skip_model_load:
-        _, conf = get_model_from_run(run_path, only_conf=True)
-        all_models = []
-    else:
-        model, conf = get_model_from_run(run_path, step)
-        model = model.cuda().eval()
-        all_models = [model]
-        if not skip_baselines:
-            all_models += models.get_relevant_baselines(conf.training.task)
+    model, conf = get_model_from_run(run_path, step)
+    transformer_model = model.cuda().eval()
     evaluation_kwargs = build_evals(conf)
 
     if not cache:
@@ -316,8 +334,8 @@ def get_run_metrics(
         cache_created = os.path.getmtime(save_path)
         if checkpoint_created > cache_created:
             recompute = True
-    print(evaluation_kwargs)
-    all_metrics = compute_evals(all_models, evaluation_kwargs, save_path, recompute)
+
+    all_metrics = compute_evals_basis(transformer_model, evaluation_kwargs, save_path, recompute)
     print(all_metrics)
     return all_metrics
 
@@ -329,7 +347,8 @@ def conf_to_model_name(conf):
             (3, 2): "Transformer-xs",
             (6, 4): "Transformer-small",
             (12, 8): "Transformer",
-            (16, 8): "Transformer-plus",
+            (16, 8): "Transformer-16",
+            (24, 16): "Transformer-plus",
         }[(conf.model.n_layer, conf.model.n_head)]
     else:
         return conf.wandb.name
@@ -337,6 +356,10 @@ def conf_to_model_name(conf):
 
 def baseline_names(name):
     print(name)
+    if "ridge" in name:
+        return "Chebyshev Ridge " + name.split("_")[2]
+    if "cheby" in name:
+        return "Chebyshev " + name.split("_")[1]
     if "kernel" in name:
         return "Kernel Least Squares " + name.split("_")[1]
     if "OLS" in name:

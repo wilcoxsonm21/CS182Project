@@ -13,10 +13,12 @@ palette = sns.color_palette("colorblind")
 relevant_model_names = {
     "kernel_linear_regression": [
         "Transformer",
+        "Transformer-16",
         #"Kernel Least Squares 2",
         #"Kernel Least Squares 3",
-        "Kernel Least Squares 3",
-        "Kernel Least Squares 1",
+        "Kernel Least Squares 11",
+        "Chebyshev",
+        "Chebyshev Ridge",
     ],
     "linear_regression": [
         "Transformer",
@@ -46,8 +48,19 @@ relevant_model_names = {
     ],
 }
 
+def get_model_names_for_degree(degree):
+    names = ["Transformer",
+            "Transformer-16",
+        "Chebyshev " + str(degree),
+        "Kernel Least Squares " + str(degree),
+        "Chebyshev Ridge " + str(degree),]
+    if degree < 11:
+        names.append("Chebyshev Ridge 11")
+    if degree > 1:
+        names.append("Chebyshev Ridge 1")
 
-def basic_plot(metrics, models=None, trivial=1.0):
+
+def basic_plot(metrics, models=None, trivial=1.0, ylim=5):
     fig, ax = plt.subplots(1, 1)
 
     if models is not None:
@@ -64,7 +77,7 @@ def basic_plot(metrics, models=None, trivial=1.0):
     ax.set_xlabel("in-context examples")
     ax.set_ylabel("squared error")
     #ax.set_xlim(-1, len(low) + 0.1)
-    ax.set_ylim(-0.1, 2)
+    ax.set_ylim(-0.05, ylim)
 
     legend = ax.legend(loc="upper left", bbox_to_anchor=(1, 1))
     fig.set_size_inches(4, 3)
