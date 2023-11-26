@@ -9,7 +9,9 @@ model:
 training:
     task: kernel_linear_regression
     data: gaussian
-    task_kwargs: {"basis_dim": 11, "different_degrees": True, "lowest_degree": 1, "highest_degree": 11}
+    # task_kwargs: {"basis_dim": 11, "different_degrees": True, "lowest_degree": 1, "highest_degree": 11}
+    task_kwargs: {"basis_dim": 11, "different_degrees": True, "lowest_degree": 1}
+
     batch_size: 64
     learning_rate: 0.00005
     save_every_steps: 1000
@@ -26,6 +28,11 @@ training:
             end: 41
             inc: 1
             interval: 1000
+        deg: 
+            start: 1
+            end: 11
+            inc: 1
+            interval: 3000
 
 out_dir: ../models/kernel_linear_regression
 

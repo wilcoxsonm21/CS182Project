@@ -57,6 +57,7 @@ def train(model, args):
         n_dims,
         bsize,
         num_tasks=args.training.num_tasks,
+        curriculum=curriculum,
         **args.training.task_kwargs,
     )
     pbar = tqdm(range(starting_step, args.training.train_steps))

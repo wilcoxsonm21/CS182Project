@@ -119,11 +119,12 @@ class LinearRegression(Task):
         return mean_squared_error
 
 class ChebyshevKernelLinearRegression(Task):
-    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1, different_degrees=False, lowest_degree=1, highest_degree=1):
+    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1, different_degrees=False, lowest_degree=1, highest_degree=1, curriculum=None):
         """scale: a constant by which to scale the randomly sampled weights."""
         #print(basis_dim)
         super(ChebyshevKernelLinearRegression, self).__init__(n_dims, batch_size, pool_dict, seeds)
         self.basis_dim = basis_dim
+        self.curriculum = curriculum
         self.highest_degree = highest_degree
         self.diff_poly_degree = different_degrees 
         self.lowest_degree = lowest_degree
@@ -149,6 +150,8 @@ class ChebyshevKernelLinearRegression(Task):
 
         if self.diff_poly_degree:
             mask = torch.ones(combinations.shape[0], combinations.shape[-1], dtype=torch.float32)
+            if curriculum:
+                self.highest_degree = curriculum.highest_degree
             indices = torch.randint(self.lowest_degree, self.highest_degree + 1, (combinations.shape[0], 1))    # Note the dimensions
             self.indices = indices
             mask[torch.arange(0, combinations.shape[-1], dtype=torch.float32).repeat(combinations.shape[0],1) >= indices] = 0
@@ -163,8 +166,9 @@ class ChebyshevKernelLinearRegression(Task):
     def evaluate(self, xs_b):
         #print("xs_b: ", xs_b.shape)
         # print(xs_b)
-
-        degree = torch.randint(1, self.highest_degree + 1, size=(self.b_size, 1))
+        
+        # degree = torch.randint(1, self.highest_degree + 1, size=(self.b_size, 1))
+        
         expanded_basis = torch.zeros(*xs_b.shape[:-1], xs_b.shape[-1]*(self.basis_dim + 1))
         for i in range(self.basis_dim + 1): #we are also adding the constant term
             # We want to normalize the input so the output has the same variance indepedent of basis dimension

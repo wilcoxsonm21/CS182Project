@@ -208,6 +208,8 @@ class LeastSquaresModel:
                 raise ValueError("inds contain indices where xs and ys are not defined")
 
         preds = []
+        print(xs.shape)
+
         for i in inds:
             if i == 0:
                 preds.append(torch.zeros_like(ys[:, 0]))  # predict zero for first point

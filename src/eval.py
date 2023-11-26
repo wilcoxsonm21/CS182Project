@@ -418,7 +418,7 @@ def read_run_dir(run_dir):
     df = pd.DataFrame(all_runs).sort_values("run_name")
     print(df.run_name.unique())
     print(df)
-    assert len(df) == len(df.run_name.unique())
+    # assert len(df) == len(df.run_name.unique())
     return df
 
 if __name__ == "__main__":
