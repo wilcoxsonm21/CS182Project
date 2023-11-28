@@ -163,7 +163,7 @@ class ChebyshevKernelLinearRegression(Task):
         self.w_b = (combinations @ self.chebyshev_coeffs).unsqueeze(2)
         self.baselines = [ChebyshevKernelLeastSquaresModel(basis_dim=i) for i in range(1, self.basis_dim + 1)]
         #print(self.w_b)
-    def evaluate(self, xs_b):
+    def evaluate(self, xs_b, noise=True):
         #print("xs_b: ", xs_b.shape)
         # print(xs_b)
         
@@ -186,7 +186,10 @@ class ChebyshevKernelLinearRegression(Task):
         #print(ys_b)
 
         #assert torch.max(ys_b) <= 1 and torch.min(ys_b) >= -1
-        return ys_b 
+        if noise:
+            return ys_b
+        else:
+            return ys_b
 
     @staticmethod
     def generate_pool_dict(n_dims, num_tasks, **kwargs):  # ignore extra args
@@ -196,11 +199,11 @@ class ChebyshevKernelLinearRegression(Task):
     def get_metric():
         return squared_error
 
-    def get_training_loss(self, y_pred, xs, ys):
-        ys = torch.stack([self.baselines[self.indices[i] - 1].__call__(xs[i].unsqueeze(0), ys[i].unsqueeze(0)).squeeze() for i in range(ys.shape[0])], dim=0).to(y_pred.device)
-        l = (ys - y_pred).square()
-        l_mean = l.mean()
-        return l_mean
+    def get_training_loss(self):
+        #ys = torch.stack([self.baselines[self.indices[i] - 1].__call__(xs[i].unsqueeze(0), ys[i].unsqueeze(0)).squeeze() for i in range(ys.shape[0])], dim=0).to(y_pred.device)
+        #l = (ys - y_pred).square()
+        #l_mean = l.mean()
+        return mean_squared_error
     
 class KernelLinearRegression(LinearRegression):
     def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1): #TODO only supports axis alligned 

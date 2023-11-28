@@ -47,9 +47,10 @@ def eval_batch(model, task_sampler, xs, xs_p=None):
         device = "cpu"
 
     if xs_p is None:
-        ys = task.evaluate(xs)
+        ys, noise = task.evaluate(xs)
+        ys = ys + noise
         pred = model(xs.to(device), ys.to(device)).detach()
-        metrics = task.get_metric()(pred.cpu(), ys)
+        metrics = task.get_metric()(pred.cpu(), ys - noise)
     else:
         b_size, n_points, _ = xs.shape
         metrics = torch.zeros(b_size, n_points)
@@ -59,9 +60,48 @@ def eval_batch(model, task_sampler, xs, xs_p=None):
 
             pred = model(xs_comb.to(device), ys.to(device), inds=[i]).detach()
             metrics[:, i] = task.get_metric()(pred.cpu(), ys)[:, i]
-
     return metrics
 
+def eval_batch_smooth(model, task_sampler, xs, smoothing=0):
+    task = task_sampler()
+    device = "cuda"
+    perturbations = np.arange(-1 * smoothing, smoothing, 0.0001)
+    predictions = torch.zeros(len(perturbations), xs.shape[0], xs.shape[1])
+    ys, noise = task.evaluate(xs)
+    ys = ys + noise
+    for i in range(len(perturbations)):
+        cur_xs = xs + perturbations[i]
+        pred = model(cur_xs.to(device), ys.to(device)).detach()
+        predictions[i] = pred.cpu()
+    predictions = predictions.mean(dim=0)
+    metrics = task.get_metric()(predictions, ys - noise)
+    return metrics
+
+def get_imputed_ys(model, task, xs, test_x, smoothing = 0):
+    if torch.cuda.is_available() and model.name.split("_")[0] in ["gpt2", "lstm"]:
+        device = "cuda"
+    else:
+        device = "cpu"
+    predictions = []
+    #print("xs shape: ", xs.shape)
+    #print("test_x shape: ", test_x.shape)
+    for i in range(test_x.shape[1]):
+        center = test_x[:, i, :].unsqueeze(0)
+        perturbations = np.arange(-1 * smoothing + center, smoothing + center, 0.0001)
+        batched_eval = torch.zeros(len(perturbations), xs.shape[1] + 1, xs.shape[2])
+        for j in range(len(perturbations)):
+            expanded = torch.as_tensor(perturbations[j]).unsqueeze(0).unsqueeze(1).unsqueeze(2)
+            expanded = expanded.float()
+            batched_eval[j] = torch.cat([xs, expanded], dim=1)
+        cur_xs = torch.cat((xs, center), dim=1)
+        ys, noise = task.evaluate(cur_xs)          
+        ys = ys + noise
+        ys = ys.repeat(len(perturbations), 1, 1).squeeze(1)    
+        pred = model(batched_eval.to(device), ys.to(device)).detach()
+        predictions.append(pred.cpu().mean(dim=0)[-1])
+    result = torch.stack(predictions, dim=0)
+    #print(result.shape)
+    return result
 
 # Functions for generating different kinds of train/test data
 
@@ -183,7 +223,13 @@ def eval_model(
     generating_func = globals()[f"gen_{prompting_strategy}"]
     for i in range(num_eval_examples // batch_size):
         xs, xs_p = generating_func(data_sampler, n_points, batch_size)
-        metrics = eval_batch(model, task_sampler, xs, xs_p)
+        if not isinstance(model, models.TransformerModel):
+            print("model type: ", type(model))
+            metrics = eval_batch(model, task_sampler, xs, xs_p)
+        else:
+            print(model)
+            print("smoothed!")
+            metrics = eval_batch_smooth(model, task_sampler, xs, smoothing=0.03)
         all_metrics.append(metrics)
 
     metrics = torch.cat(all_metrics, dim=0)
@@ -299,6 +345,8 @@ def compute_evals_basis(transformer_model, evaluation_kwargs, save_path=None, re
         metrics = {}
         baselines =  get_relevant_baselines_for_degree(i)
         baselines += [transformer_model]
+        if "degree-" + str(i) in all_metrics and not recompute:
+            metrics = all_metrics["degree-" + str(i)]
         for model in baselines:
             if model.name in metrics and not recompute:
                 continue
