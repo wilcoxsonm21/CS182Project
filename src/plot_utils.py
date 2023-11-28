@@ -51,6 +51,7 @@ relevant_model_names = {
 def get_model_names_for_degree(degree):
     names = ["Transformer",
             "Transformer-16",
+            "Transformer Smoothed",
         "Chebyshev " + str(degree),
         "Kernel Least Squares " + str(degree),
         "Chebyshev Ridge " + str(degree),]
@@ -87,7 +88,7 @@ def basic_plot(metrics, models=None, trivial=1.0, ylim=5):
     return fig, ax
 
 
-def collect_results(run_dir, df, valid_row=None, rename_eval=None, rename_model=None):
+def collect_results(run_dir, df, valid_row=None, rename_eval=None, rename_model=None, smoothing=0):
     all_metrics = {}
     for _, r in df.iterrows():
         if valid_row is not None and not valid_row(r):
@@ -97,7 +98,7 @@ def collect_results(run_dir, df, valid_row=None, rename_eval=None, rename_model=
         _, conf = get_model_from_run(run_path, only_conf=True)
 
         print(r.run_name, r.run_id)
-        metrics = get_run_metrics(run_path, skip_model_load=True)
+        metrics = get_run_metrics(run_path, skip_model_load=True, smoothing=smoothing)
         print(metrics)
         for eval_name, results in sorted(metrics.items()):
             processed_results = {}

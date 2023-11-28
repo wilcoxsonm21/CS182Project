@@ -39,42 +39,28 @@ def get_model_from_run(run_path, step=-1, only_conf=False):
 # Functions for evaluation
 
 
-def eval_batch(model, task_sampler, xs, xs_p=None):
+def eval_batch(model, task_sampler, xs, include_noise=True, ground_truth_loss=False, smoothing=0):
     task = task_sampler()
     if torch.cuda.is_available() and model.name.split("_")[0] in ["gpt2", "lstm"]:
         device = "cuda"
     else:
         device = "cpu"
-
-    if xs_p is None:
-        ys, noise = task.evaluate(xs)
-        ys = ys + noise
-        pred = model(xs.to(device), ys.to(device)).detach()
-        metrics = task.get_metric()(pred.cpu(), ys - noise)
-    else:
-        b_size, n_points, _ = xs.shape
-        metrics = torch.zeros(b_size, n_points)
-        for i in range(n_points):
-            xs_comb = torch.cat((xs[:, :i, :], xs_p[:, i:, :]), dim=1)
-            ys = task.evaluate(xs_comb)
-
-            pred = model(xs_comb.to(device), ys.to(device), inds=[i]).detach()
-            metrics[:, i] = task.get_metric()(pred.cpu(), ys)[:, i]
-    return metrics
-
-def eval_batch_smooth(model, task_sampler, xs, smoothing=0):
-    task = task_sampler()
-    device = "cuda"
-    perturbations = np.arange(-1 * smoothing, smoothing, 0.0001)
+    perturbations = np.arange(-1 * smoothing, smoothing + 0.002, 0.002)
     predictions = torch.zeros(len(perturbations), xs.shape[0], xs.shape[1])
-    ys, noise = task.evaluate(xs)
-    ys = ys + noise
+    if ground_truth_loss:
+        ys, noise = task.evaluate(xs, noise=include_noise, separate_noise=True)
+        ys = ys + noise
+    else:
+        ys = task.evaluate(xs, noise=include_noise, separate_noise=False)
     for i in range(len(perturbations)):
         cur_xs = xs + perturbations[i]
         pred = model(cur_xs.to(device), ys.to(device)).detach()
         predictions[i] = pred.cpu()
     predictions = predictions.mean(dim=0)
-    metrics = task.get_metric()(predictions, ys - noise)
+    if ground_truth_loss:
+        metrics = task.get_metric()(predictions, ys - noise)
+    else: 
+        metrics = task.get_metric()(predictions, ys)
     return metrics
 
 def get_imputed_ys(model, task, xs, test_x, smoothing = 0):
@@ -83,8 +69,6 @@ def get_imputed_ys(model, task, xs, test_x, smoothing = 0):
     else:
         device = "cpu"
     predictions = []
-    #print("xs shape: ", xs.shape)
-    #print("test_x shape: ", test_x.shape)
     for i in range(test_x.shape[1]):
         center = test_x[:, i, :].unsqueeze(0)
         perturbations = np.arange(-1 * smoothing + center, smoothing + center, 0.0001)
@@ -100,7 +84,6 @@ def get_imputed_ys(model, task, xs, test_x, smoothing = 0):
         pred = model(batched_eval.to(device), ys.to(device)).detach()
         predictions.append(pred.cpu().mean(dim=0)[-1])
     result = torch.stack(predictions, dim=0)
-    #print(result.shape)
     return result
 
 # Functions for generating different kinds of train/test data
@@ -200,6 +183,9 @@ def eval_model(
     batch_size=64,
     data_sampler_kwargs={},
     task_sampler_kwargs={},
+    include_noise=True,
+    ground_truth_loss=False,
+    smoothing=0,
 ):
     """
     Evaluate a model on a task with a variety of strategies.
@@ -225,11 +211,12 @@ def eval_model(
         xs, xs_p = generating_func(data_sampler, n_points, batch_size)
         if not isinstance(model, models.TransformerModel):
             print("model type: ", type(model))
-            metrics = eval_batch(model, task_sampler, xs, xs_p)
+            print(include_noise)
+            metrics = eval_batch(model, task_sampler, xs, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=0)
         else:
             print(model)
             print("smoothed!")
-            metrics = eval_batch_smooth(model, task_sampler, xs, smoothing=0.03)
+            metrics = eval_batch(model, task_sampler, xs, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing)
         all_metrics.append(metrics)
 
     metrics = torch.cat(all_metrics, dim=0)
@@ -334,11 +321,13 @@ def compute_evals(all_models, evaluation_kwargs, save_path=None, recompute=False
 
     return all_metrics
 
-def compute_evals_basis(transformer_model, evaluation_kwargs, save_path=None, recompute=False):
+def compute_evals_basis(transformer_model, evaluation_kwargs, save_path=None, recompute=False, include_noise=True, ground_truth_loss=False, smoothing=0):
     try:
         with open(save_path) as fp:
             all_metrics = json.load(fp)
     except Exception:
+        print("no metrics found")
+        1/0
         all_metrics = {}
     standard_args = evaluation_kwargs["standard"]
     for i in range(1, 12):
@@ -351,7 +340,7 @@ def compute_evals_basis(transformer_model, evaluation_kwargs, save_path=None, re
             if model.name in metrics and not recompute:
                 continue
             standard_args["task_sampler_kwargs"] = {"basis_dim": i,} # TODO: fix this]
-            metrics[model.name] = eval_model(model, **standard_args)
+            metrics[model.name] = eval_model(model, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing, **standard_args)
         all_metrics["degree-" + str(i)] = metrics
 
     if save_path is not None:
@@ -363,8 +352,7 @@ def compute_evals_basis(transformer_model, evaluation_kwargs, save_path=None, re
 
 
 def get_run_metrics(
-    run_path, step=-1, cache=True, skip_model_load=False, skip_baselines=False
-):
+    run_path, step=-1, cache=True, skip_model_load=False, skip_baselines=False, include_noise=True, ground_truth_loss=False, smoothing=0):
     model, conf = get_model_from_run(run_path, step)
     transformer_model = model.cuda().eval()
     evaluation_kwargs = build_evals(conf)
@@ -372,10 +360,13 @@ def get_run_metrics(
     if not cache:
         save_path = None
     elif step == -1:
-        save_path = os.path.join(run_path, "metrics.json")
+        if smoothing > 0:
+            save_path = os.path.join(run_path, "metrics_smooth_light.json")
+        else:
+            save_path = os.path.join(run_path, "metrics.json")
     else:
         save_path = os.path.join(run_path, f"metrics_{step}.json")
-
+    print(save_path)
     recompute = False
     if save_path is not None and os.path.exists(save_path):
         checkpoint_created = os.path.getmtime(run_path)
@@ -383,7 +374,7 @@ def get_run_metrics(
         if checkpoint_created > cache_created:
             recompute = True
 
-    all_metrics = compute_evals_basis(transformer_model, evaluation_kwargs, save_path, recompute)
+    all_metrics = compute_evals_basis(transformer_model, evaluation_kwargs, save_path, recompute, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing)
     print(all_metrics)
     return all_metrics
 

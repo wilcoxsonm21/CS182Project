@@ -121,7 +121,6 @@ class LinearRegression(Task):
 class ChebyshevKernelLinearRegression(Task):
     def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1, different_degrees=False, lowest_degree=1, highest_degree=1, curriculum=None):
         """scale: a constant by which to scale the randomly sampled weights."""
-        #print(basis_dim)
         super(ChebyshevKernelLinearRegression, self).__init__(n_dims, batch_size, pool_dict, seeds)
         self.basis_dim = basis_dim
         self.curriculum = curriculum
@@ -145,9 +144,6 @@ class ChebyshevKernelLinearRegression(Task):
         
         self.chebyshev_coeffs = self.chebyshev_coeffs[:self.basis_dim + 1, :self.basis_dim + 1]
         combinations = torch.randn(size=(self.b_size, self.basis_dim + 1))
-        #studentsT = torch.distributions.StudentT(1)
-        #combinations = studentsT.sample(sample_shape=(self.b_size, self.basis_dim + 1))
-
         if self.diff_poly_degree:
             mask = torch.ones(combinations.shape[0], combinations.shape[-1], dtype=torch.float32)
             if curriculum:
@@ -157,37 +153,19 @@ class ChebyshevKernelLinearRegression(Task):
             mask[torch.arange(0, combinations.shape[-1], dtype=torch.float32).repeat(combinations.shape[0],1) >= indices] = 0
             combinations = torch.mul(combinations, mask)
             self.mask = mask
-        #print(combinations)
-        #combinations /= torch.sum(torch.abs(combinations), dim=1).unsqueeze(1)
-        #print(combinations)
         self.w_b = (combinations @ self.chebyshev_coeffs).unsqueeze(2)
-        self.baselines = [ChebyshevKernelLeastSquaresModel(basis_dim=i) for i in range(1, self.basis_dim + 1)]
-        #print(self.w_b)
-    def evaluate(self, xs_b, noise=True):
-        #print("xs_b: ", xs_b.shape)
-        # print(xs_b)
-        
-        # degree = torch.randint(1, self.highest_degree + 1, size=(self.b_size, 1))
-        
+
+    def evaluate(self, xs_b, noise=True, separate_noise=False, noise_variance=0.5):
         expanded_basis = torch.zeros(*xs_b.shape[:-1], xs_b.shape[-1]*(self.basis_dim + 1))
         for i in range(self.basis_dim + 1): #we are also adding the constant term
-            # We want to normalize the input so the output has the same variance indepedent of basis dimension
-            # This involves a coefficient that is inverse of variance for each power of x
-            # And another coefficient that is inverse of sqrt of variance for total basis dim since variance is additive
             expanded_basis[..., i*xs_b.shape[-1]:(i+1)*xs_b.shape[-1]] = xs_b**i
-        expanded_basis.to(xs_b.device)
-
-        
-        
+        expanded_basis.to(xs_b.device)        
         w_b = self.w_b.to(xs_b.device)
-        #print(w_b)
-        #print(expanded_basis)
         ys_b = (expanded_basis @ w_b)[:, :, 0]
-        #print(ys_b)
-
-        #assert torch.max(ys_b) <= 1 and torch.min(ys_b) >= -1
-        if noise:
-            return ys_b
+        if noise and not separate_noise:
+            return ys_b + math.sqrt(noise_variance) * torch.randn_like(ys_b)
+        elif noise and separate_noise:
+            return ys_b, math.sqrt(noise_variance) * torch.randn_like(ys_b)
         else:
             return ys_b
 
@@ -200,9 +178,6 @@ class ChebyshevKernelLinearRegression(Task):
         return squared_error
 
     def get_training_loss(self):
-        #ys = torch.stack([self.baselines[self.indices[i] - 1].__call__(xs[i].unsqueeze(0), ys[i].unsqueeze(0)).squeeze() for i in range(ys.shape[0])], dim=0).to(y_pred.device)
-        #l = (ys - y_pred).square()
-        #l_mean = l.mean()
         return mean_squared_error
     
 class KernelLinearRegression(LinearRegression):
