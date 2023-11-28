@@ -1,5 +1,5 @@
 model:
     family: gpt2
-    n_embd: 512 #256
-    n_layer: 24 #12
-    n_head: 16 #8
+    n_embd: 256 #512 #256
+    n_layer: 12 # 24 #12
+    n_head: 8 #16 #8
