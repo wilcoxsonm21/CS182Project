@@ -1,19 +1,7 @@
-This repository contains the code and models for our paper:
+This repository contains the code and models for our CS182 Fall 2023 Project:
+**Polynomial Regression Using In-Context Learning with Transformer Modelss** <br>
+*Ria Doshi, Stefanie Gshwind, Carolyn Wang, Max Wilcoxson<br>
 
-**What Can Transformers Learn In-Context? A Case Study of Simple Function Classes** <br>
-*Shivam Garg\*, Dimitris Tsipras\*, Percy Liang, Gregory Valiant* <br>
-Paper: http://arxiv.org/abs/2208.01066 <br><br>
-
-![](setting.jpg)
-
-```bibtex
-    @InProceedings{garg2022what,
-        title={What Can Transformers Learn In-Context? A Case Study of Simple Function Classes},
-        author={Shivam Garg and Dimitris Tsipras and Percy Liang and Gregory Valiant},
-        year={2022},
-        booktitle={arXiv preprint}
-    }
-```
 
 ## Getting started
 You can start by cloning our repository and following the steps below.
@@ -39,6 +27,18 @@ are as follows (starting from `src`):
 - The `eval.ipynb` notebook contains code to load our own pre-trained models, plot the pre-computed metrics, and evaluate them on new data.
 - `train.py` takes as argument a configuration yaml from `conf` and trains the corresponding model. You can try `python train.py --config conf/toy.yaml` for a quick training run.
 
-# Maintainers
-* [Shivam Garg](https://cs.stanford.edu/~shivamg/)
-* [Dimitris Tsipras](https://dtsipras.com/)
+Codebase Forked From the Below Paper: 
+**What Can Transformers Learn In-Context? A Case Study of Simple Function Classes** <br>
+*Shivam Garg\*, Dimitris Tsipras\*, Percy Liang, Gregory Valiant* <br>
+Paper: http://arxiv.org/abs/2208.01066 <br><br>
+
+![](setting.jpg)
+
+```bibtex
+    @InProceedings{garg2022what,
+        title={What Can Transformers Learn In-Context? A Case Study of Simple Function Classes},
+        author={Shivam Garg and Dimitris Tsipras and Percy Liang and Gregory Valiant},
+        year={2022},
+        booktitle={arXiv preprint}
+    }
+```
