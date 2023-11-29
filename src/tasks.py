@@ -2,6 +2,9 @@ import math
 
 import torch
 
+import numpy as np
+import numpy as np
+from models import *
 
 def squared_error(ys_pred, ys):
     return (ys - ys_pred).square()
@@ -60,7 +63,8 @@ def get_task_sampler(
         "quadratic_regression": QuadraticRegression,
         "relu_2nn_regression": Relu2nnRegression,
         "decision_tree": DecisionTree,
-        "kernel_linear_regression": KernelLinearRegression,
+        "kernel_linear_regression": ChebyshevKernelLinearRegression,
+        "chebyshev_kernel_linear_regression": ChebyshevKernelLinearRegression,
     }
     if task_name in task_names_to_classes:
         task_cls = task_names_to_classes[task_name]
@@ -96,6 +100,9 @@ class LinearRegression(Task):
 
     def evaluate(self, xs_b):
         w_b = self.w_b.to(xs_b.device)
+        print(w_b.shape)
+        print(xs_b.shape)
+        print((xs_b @ w_b).shape)
         ys_b = self.scale * (xs_b @ w_b)[:, :, 0]
         return ys_b
 
@@ -110,22 +117,106 @@ class LinearRegression(Task):
     @staticmethod
     def get_training_metric():
         return mean_squared_error
+
+class ChebyshevKernelLinearRegression(Task):
+    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1, different_degrees=False, lowest_degree=1, highest_degree=1, curriculum=None):
+        """scale: a constant by which to scale the randomly sampled weights."""
+        super(ChebyshevKernelLinearRegression, self).__init__(n_dims, batch_size, pool_dict, seeds)
+        self.basis_dim = basis_dim
+        self.curriculum = curriculum
+        self.highest_degree = highest_degree
+        self.diff_poly_degree = different_degrees 
+        self.lowest_degree = lowest_degree
+        self.chebyshev_coeffs = torch.tensor([
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [-1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, -3, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0],
+            [1, 0, -8, 0, 8, 0, 0, 0, 0, 0, 0, 0],
+            [0, 5, 0, -20, 0, 16, 0, 0, 0, 0, 0, 0],
+            [-1, 0, 18, 0, -48, 0, 32, 0, 0, 0, 0, 0],
+            [0, -7, 0, 56, 0, -112, 0, 64, 0, 0, 0, 0],
+            [1, 0, -32, 0, 160, 0, -256, 0, 128, 0, 0, 0],
+            [0, 9, 0, -120, 0, 432, 0, -576, 0, 256, 0, 0],
+            [-1, 0, 50, 0, -400, 0, 1120, 0, -1280, 0, 512, 0],
+            [0, -11, 0, 220, 0, -1232, 0, 2816, 0, -2816, 0, 1024]
+        ], dtype=torch.float)
+        
+        self.chebyshev_coeffs = self.chebyshev_coeffs[:self.basis_dim + 1, :self.basis_dim + 1]
+        combinations = torch.randn(size=(self.b_size, self.basis_dim + 1))
+        if self.diff_poly_degree:
+            mask = torch.ones(combinations.shape[0], combinations.shape[-1], dtype=torch.float32)
+            if curriculum:
+                self.highest_degree = curriculum.highest_degree
+            indices = torch.randint(self.lowest_degree, self.highest_degree + 1, (combinations.shape[0], 1))    # Note the dimensions
+            self.indices = indices
+            mask[torch.arange(0, combinations.shape[-1], dtype=torch.float32).repeat(combinations.shape[0],1) >= indices] = 0
+            combinations = torch.mul(combinations, mask)
+            self.mask = mask
+        self.w_b = (combinations @ self.chebyshev_coeffs).unsqueeze(2)
+
+    def evaluate(self, xs_b, noise=True, separate_noise=False, noise_variance=0.5):
+        expanded_basis = torch.zeros(*xs_b.shape[:-1], xs_b.shape[-1]*(self.basis_dim + 1))
+        for i in range(self.basis_dim + 1): #we are also adding the constant term
+            expanded_basis[..., i*xs_b.shape[-1]:(i+1)*xs_b.shape[-1]] = xs_b**i
+        expanded_basis.to(xs_b.device)        
+        w_b = self.w_b.to(xs_b.device)
+        ys_b = (expanded_basis @ w_b)[:, :, 0]
+        if noise and not separate_noise:
+            return ys_b + math.sqrt(noise_variance) * torch.randn_like(ys_b)
+        elif noise and separate_noise:
+            return ys_b, math.sqrt(noise_variance) * torch.randn_like(ys_b)
+        else:
+            return ys_b
+
+    @staticmethod
+    def generate_pool_dict(n_dims, num_tasks, **kwargs):  # ignore extra args
+        return {"w": torch.randn(num_tasks, n_dims, 1)}
+
+    @staticmethod
+    def get_metric():
+        return squared_error
+
+    def get_training_loss(self):
+        return mean_squared_error
     
 class KernelLinearRegression(LinearRegression):
     def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1): #TODO only supports axis alligned 
         """scale: a constant by which to scale the randomly sampled weights."""
-        super(KernelLinearRegression, self).__init__(
-            n_dims*basis_dim, batch_size, pool_dict, seeds, scale
-        )
+        self.tasks = []
         self.basis_dim = basis_dim
+        self.shift = None
+        for i in range(self.basis_dim):
+            self.tasks.append(LinearRegression(n_dims*(i + 1), batch_size, pool_dict, seeds, scale))
     
     def evaluate(self, xs_b):
-        print(self.n_dims)
-        expanded_basis = torch.zeros(*xs_b.shape[:-1], xs_b.shape[-1]*self.basis_dim)
-        for i in range(self.basis_dim):
-            expanded_basis[..., i*xs_b.shape[-1]:(i+1)*xs_b.shape[-1]] = xs_b**(i + 1)
-        return super(KernelLinearRegression, self).evaluate(expanded_basis)
+        #random = np.random.randint(0, self.basis_dim)
+        random = self.basis_dim - 1
+        basis_dim = random + 1
+        expanded_basis = torch.zeros(*xs_b.shape[:-1], xs_b.shape[-1]*basis_dim)
+        for i in range(basis_dim):
+            # We want to normalize the input so the output has the same variance indepedent of basis dimension
+            # This involves a coefficient that is inverse of variance for each power of x
+            # And another coefficient that is inverse of sqrt of variance for total basis dim since variance is additive
+            expanded_basis[..., i*xs_b.shape[-1]:(i+1)*xs_b.shape[-1]] = (1/math.sqrt(basis_dim))*(1/math.sqrt(self.getNthDegreeVariance(i + 1)))*(xs_b**(i + 1))
+        expanded_basis.to(xs_b.device)
+        standard = self.tasks[random].evaluate(expanded_basis) # Note that we are using log to make the scales
+        if self.shift is None:
+            self.shift = 100*torch.min(standard) - 1e-5
         
+        return standard - self.shift
+        
+    
+    # Returns the expectation of X^n where X is a standard normal random variable
+    def getNthDegreeExpectation(self, n):
+        if n % 2 == 0:
+            return math.factorial(n) / (2**(n/2) * math.factorial(n/2))
+        else:
+            return 0
+    
+    # Returns the variance of X^n where X is a standard normal random variable
+    def getNthDegreeVariance(self, n):
+        return self.getNthDegreeExpectation(2*n) - self.getNthDegreeExpectation(n)**2        
 
 class SparseLinearRegression(LinearRegression):
     def __init__(

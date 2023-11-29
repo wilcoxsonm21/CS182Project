@@ -11,6 +11,11 @@ class Curriculum:
         self.n_points = args.points.start
         self.n_dims_schedule = args.dims
         self.n_points_schedule = args.points
+
+        # add curriculum learning for highest degree
+        self.highest_degree = args.deg.start
+        self.highest_degree_schedule = args.deg
+
         self.step_count = 0
 
     def update(self):
@@ -19,6 +24,9 @@ class Curriculum:
             self.n_dims_truncated, self.n_dims_schedule
         )
         self.n_points = self.update_var(self.n_points, self.n_points_schedule)
+
+        # change the highest degree possible per interval
+        self.highest_degree = self.update_var(self.highest_degree, self.highest_degree_schedule)
 
     def update_var(self, var, schedule):
         if self.step_count % schedule.interval == 0:

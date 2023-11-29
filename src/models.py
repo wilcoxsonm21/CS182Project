@@ -7,6 +7,7 @@ from sklearn.linear_model import LogisticRegression, Lasso
 import warnings
 from sklearn import tree
 import xgboost as xgb
+import math
 
 from base_models import NeuralNetwork, ParallelNetworks
 
@@ -29,10 +30,9 @@ def build_model(conf):
 def get_relevant_baselines(task_name):
     task_to_baselines = {
         "kernel_linear_regression": [
-            (KernelLeastSquaresModel, {"basis_dim": 2}), #TODO: Avoid hard coding
-            (LeastSquaresModel, {}),
-            (NNModel, {"n_neighbors": 3}),
-            (AveragingModel, {}),
+            (KernelLeastSquaresModel, {"basis_dim": 11}), #TODO: Avoid hard coding
+            (ChebyshevKernelLeastSquaresModel, {"basis_dim": 11}),
+            (ChebyshevKernelLeastSquaresModelWithRidge, {"basis_dim": 11}),
         ],
         "linear_regression": [
             (LeastSquaresModel, {}),
@@ -80,6 +80,15 @@ def get_relevant_baselines(task_name):
     }
 
     models = [model_cls(**kwargs) for model_cls, kwargs in task_to_baselines[task_name]]
+    return models
+
+def get_relevant_baselines_for_degree(degree):
+    task_for_degree =  [
+            (ChebyshevKernelLeastSquaresModel, {"basis_dim": degree}),
+        (ChebyshevKernelLeastSquaresModelWithRidge, {"basis_dim": degree}),
+        ]
+
+    models = [model_cls(**kwargs) for model_cls, kwargs in task_for_degree]
     return models
 
 
@@ -135,7 +144,7 @@ class TransformerModel(nn.Module):
 
 class NNModel:
     def __init__(self, n_neighbors, weights="uniform"):
-        # should we be picking k optimally
+
         self.n_neighbors = n_neighbors
         self.weights = weights
         self.name = f"NN_n={n_neighbors}_{weights}"
@@ -191,6 +200,7 @@ class LeastSquaresModel:
                 raise ValueError("inds contain indices where xs and ys are not defined")
 
         preds = []
+        print(xs.shape)
 
         for i in inds:
             if i == 0:
@@ -209,17 +219,175 @@ class LeastSquaresModel:
         return torch.stack(preds, dim=1)
 
 class KernelLeastSquaresModel(LeastSquaresModel):
-    def __init__(self, basis_dim:int = 1, driver=None):
+    def __init__(self, basis_dim:int = 1, driver=None, random=True):
         super().__init__(driver)
         self.basis_dim = basis_dim
         self.name = f"kernel_{basis_dim}_driver={driver}"
+        self.random = random
     
     def __call__(self, xs, ys, inds=None): #TODO: Not sure what inds do, need to probably fix later
-        expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*self.basis_dim)
-        for i in range(self.basis_dim):
-            expanded_basis[..., i*xs.shape[-1]:(i+1)*xs.shape[-1]] = xs**(i + 1)
+        expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*(self.basis_dim + 1))
+        for i in range(self.basis_dim + 1): #we are also adding the constant term
+            # We want to normalize the input so the output has the same variance indepedent of basis dimension
+            # This involves a coefficient that is inverse of variance for each power of x
+            # And another coefficient that is inverse of sqrt of variance for total basis dim since variance is additive
+            expanded_basis[..., i*xs.shape[-1]:(i+1)*xs.shape[-1]] = xs**i
         return super().__call__(expanded_basis, ys, inds)
 
+class ChebyshevKernelLeastSquaresModel(LeastSquaresModel):
+    def __init__(self, basis_dim:int = 1, driver = None, random=True):
+        super().__init__(driver)
+        self.basis_dim = basis_dim
+        self.name = f"chebyshev_{basis_dim}_driver={driver}"
+        self.random = random
+    
+    def __call__(self, xs, ys, inds=None):
+        expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*(self.basis_dim + 1))
+        self.chebyshev_coeffs = torch.tensor([
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [-1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, -3, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0],
+            [1, 0, -8, 0, 8, 0, 0, 0, 0, 0, 0, 0],
+            [0, 5, 0, -20, 0, 16, 0, 0, 0, 0, 0, 0],
+            [-1, 0, 18, 0, -48, 0, 32, 0, 0, 0, 0, 0],
+            [0, -7, 0, 56, 0, -112, 0, 64, 0, 0, 0, 0],
+            [1, 0, -32, 0, 160, 0, -256, 0, 128, 0, 0, 0],
+            [0, 9, 0, -120, 0, 432, 0, -576, 0, 256, 0, 0],
+            [-1, 0, 50, 0, -400, 0, 1120, 0, -1280, 0, 512, 0],
+            [0, -11, 0, 220, 0, -1232, 0, 2816, 0, -2816, 0, 1024]
+        ], dtype=torch.float)
+        self.chebyshev_coeffs = self.chebyshev_coeffs[:self.basis_dim + 1, :self.basis_dim + 1]
+        expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*(self.basis_dim + 1))
+        for i in range(self.basis_dim + 1): #we are also adding the constant term
+            expanded_basis[..., i*xs.shape[-1]:(i+1)*xs.shape[-1]] = xs**i
+        expanded_basis = expanded_basis @ self.chebyshev_coeffs.T
+        return super().__call__(expanded_basis, ys, inds)
+    
+    def return_trained_model(self, xs, ys):
+        expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*(self.basis_dim + 1))
+        self.chebyshev_coeffs = torch.tensor([
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [-1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, -3, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0],
+            [1, 0, -8, 0, 8, 0, 0, 0, 0, 0, 0, 0],
+            [0, 5, 0, -20, 0, 16, 0, 0, 0, 0, 0, 0],
+            [-1, 0, 18, 0, -48, 0, 32, 0, 0, 0, 0, 0],
+            [0, -7, 0, 56, 0, -112, 0, 64, 0, 0, 0, 0],
+            [1, 0, -32, 0, 160, 0, -256, 0, 128, 0, 0, 0],
+            [0, 9, 0, -120, 0, 432, 0, -576, 0, 256, 0, 0],
+            [-1, 0, 50, 0, -400, 0, 1120, 0, -1280, 0, 512, 0],
+            [0, -11, 0, 220, 0, -1232, 0, 2816, 0, -2816, 0, 1024]
+        ], dtype=torch.float)
+        self.chebyshev_coeffs = self.chebyshev_coeffs[:self.basis_dim + 1, :self.basis_dim + 1]
+        expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*(self.basis_dim + 1))
+        for i in range(self.basis_dim + 1): #we are also adding the constant term
+            expanded_basis[..., i*xs.shape[-1]:(i+1)*xs.shape[-1]] = xs**i
+        expanded_basis = expanded_basis @ self.chebyshev_coeffs.T
+        xs, ys = expanded_basis.cpu(), ys.cpu()
+        A = torch.bmm(xs.transpose(1, 2), xs)
+        C = A
+        D = torch.linalg.inv(C)
+        E = torch.bmm(D, xs.transpose(1, 2))
+        ws = torch.bmm(E, ys.unsqueeze(2))
+        def predict(xs):
+            expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*(self.basis_dim + 1))
+            for i in range(self.basis_dim + 1):
+                expanded_basis[..., i*xs.shape[-1]:(i+1)*xs.shape[-1]] = xs**i
+            expanded_basis = expanded_basis @ self.chebyshev_coeffs.T
+            return expanded_basis @ ws
+        return predict
+    
+class ChebyshevKernelLeastSquaresModelWithRidge(LeastSquaresModel):
+    def __init__(self, basis_dim:int = 1, driver = None, random=True):
+        super().__init__(driver)
+        self.basis_dim = basis_dim
+        self.name = f"ridge_chebyshev_{basis_dim}_driver={driver}"
+        self.random = random
+    
+    def __call__(self, xs, ys, inds=None):
+        expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*(self.basis_dim + 1))
+        self.chebyshev_coeffs = torch.tensor([
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [-1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, -3, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0],
+            [1, 0, -8, 0, 8, 0, 0, 0, 0, 0, 0, 0],
+            [0, 5, 0, -20, 0, 16, 0, 0, 0, 0, 0, 0],
+            [-1, 0, 18, 0, -48, 0, 32, 0, 0, 0, 0, 0],
+            [0, -7, 0, 56, 0, -112, 0, 64, 0, 0, 0, 0],
+            [1, 0, -32, 0, 160, 0, -256, 0, 128, 0, 0, 0],
+            [0, 9, 0, -120, 0, 432, 0, -576, 0, 256, 0, 0],
+            [-1, 0, 50, 0, -400, 0, 1120, 0, -1280, 0, 512, 0],
+            [0, -11, 0, 220, 0, -1232, 0, 2816, 0, -2816, 0, 1024]
+        ], dtype=torch.float)
+        self.chebyshev_coeffs = self.chebyshev_coeffs[:self.basis_dim + 1, :self.basis_dim + 1]
+        expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*(self.basis_dim + 1))
+        for i in range(self.basis_dim + 1): #we are also adding the constant term
+            expanded_basis[..., i*xs.shape[-1]:(i+1)*xs.shape[-1]] = xs**i
+        expanded_basis = expanded_basis @ self.chebyshev_coeffs.T
+        xs, ys = expanded_basis.cpu(), ys.cpu()
+        if inds is None:
+            inds = range(ys.shape[1])
+        else:
+            if max(inds) >= ys.shape[1] or min(inds) < 0:
+                raise ValueError("inds contain indices where xs and ys are not defined")
+
+        preds = []
+        for i in inds:
+            if i == 0:
+                preds.append(torch.zeros_like(ys[:, 0]))  # predict zero for first point
+                continue
+            train_xs, train_ys = xs[:, :i], ys[:, :i]
+            test_x = xs[:, i : i + 1]
+            A = torch.bmm(train_xs.transpose(1, 2), train_xs)
+            B = 0.5*torch.eye(train_xs.shape[2]).unsqueeze(0).repeat(train_xs.shape[0], 1, 1)
+            C = A + B
+            D = torch.linalg.inv(C)
+            E = torch.bmm(D, train_xs.transpose(1, 2))
+            ws = torch.bmm(E, train_ys.unsqueeze(2))
+            pred = test_x @ ws
+            preds.append(pred[:, 0, 0])
+
+        return torch.stack(preds, dim=1)    
+    
+    def return_trained_model(self, xs, ys):
+        expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*(self.basis_dim + 1))
+        self.chebyshev_coeffs = torch.tensor([
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [-1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, -3, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0],
+            [1, 0, -8, 0, 8, 0, 0, 0, 0, 0, 0, 0],
+            [0, 5, 0, -20, 0, 16, 0, 0, 0, 0, 0, 0],
+            [-1, 0, 18, 0, -48, 0, 32, 0, 0, 0, 0, 0],
+            [0, -7, 0, 56, 0, -112, 0, 64, 0, 0, 0, 0],
+            [1, 0, -32, 0, 160, 0, -256, 0, 128, 0, 0, 0],
+            [0, 9, 0, -120, 0, 432, 0, -576, 0, 256, 0, 0],
+            [-1, 0, 50, 0, -400, 0, 1120, 0, -1280, 0, 512, 0],
+            [0, -11, 0, 220, 0, -1232, 0, 2816, 0, -2816, 0, 1024]
+        ], dtype=torch.float)
+        self.chebyshev_coeffs = self.chebyshev_coeffs[:self.basis_dim + 1, :self.basis_dim + 1]
+        expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*(self.basis_dim + 1))
+        for i in range(self.basis_dim + 1): #we are also adding the constant term
+            expanded_basis[..., i*xs.shape[-1]:(i+1)*xs.shape[-1]] = xs**i
+        expanded_basis = expanded_basis @ self.chebyshev_coeffs.T
+        xs, ys = expanded_basis.cpu(), ys.cpu()
+        A = torch.bmm(xs.transpose(1, 2), xs)
+        B = 0.5*torch.eye(xs.shape[2]).unsqueeze(0).repeat(xs.shape[0], 1, 1)
+        C = A + B
+        D = torch.linalg.inv(C)
+        E = torch.bmm(D, xs.transpose(1, 2))
+        ws = torch.bmm(E, ys.unsqueeze(2))
+        def predict(xs):
+            expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*(self.basis_dim + 1))
+            for i in range(self.basis_dim + 1):
+                expanded_basis[..., i*xs.shape[-1]:(i+1)*xs.shape[-1]] = xs**i
+            expanded_basis = expanded_basis @ self.chebyshev_coeffs.T
+            return expanded_basis @ ws
+        return predict
+    
 class AveragingModel:
     def __init__(self):
         self.name = "averaging"

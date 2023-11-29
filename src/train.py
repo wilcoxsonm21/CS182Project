@@ -19,10 +19,11 @@ import wandb
 torch.backends.cudnn.benchmark = True
 
 
-def train_step(model, xs, ys, optimizer, loss_func):
+def train_step(model, xs, ys, optimizer, task):
     optimizer.zero_grad()
     output = model(xs, ys)
-    loss = loss_func(output, ys)
+    l = task.get_training_loss()
+    loss = l(output, ys)
     loss.backward()
     optimizer.step()
     return loss.detach().item(), output.detach()
@@ -57,6 +58,7 @@ def train(model, args):
         n_dims,
         bsize,
         num_tasks=args.training.num_tasks,
+        curriculum=curriculum,
         **args.training.task_kwargs,
     )
     pbar = tqdm(range(starting_step, args.training.train_steps))
@@ -84,9 +86,8 @@ def train(model, args):
         task = task_sampler(**task_sampler_args)
         ys = task.evaluate(xs)
 
-        loss_func = task.get_training_metric()
 
-        loss, output = train_step(model, xs.cuda(), ys.cuda(), optimizer, loss_func)
+        loss, output = train_step(model, xs.cuda(), ys.cuda(), optimizer, task)
 
         point_wise_tags = list(range(curriculum.n_points))
         point_wise_loss_func = task.get_metric()

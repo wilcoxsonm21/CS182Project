@@ -13,10 +13,10 @@ palette = sns.color_palette("colorblind")
 relevant_model_names = {
     "kernel_linear_regression": [
         "Transformer",
-        "Kernel Least Squares",
-        "Least Squares",
-        "3-Nearest Neighbors",
-        "Averaging",
+        "Transformer-16",
+        "Kernel Least Squares 11",
+        "Chebyshev",
+        "Chebyshev Ridge",
     ],
     "linear_regression": [
         "Transformer",
@@ -46,8 +46,19 @@ relevant_model_names = {
     ],
 }
 
+def get_model_names_for_degree(degree):
+    names = ["Transformer",
+            "Transformer Curriculum",
+        "Chebyshev " + str(degree),
+        "Kernel Least Squares " + str(degree),
+        "Chebyshev Ridge " + str(degree),]
+    if degree < 11:
+        names.append("Chebyshev Ridge 11")
+    if degree > 1:
+        names.append("Chebyshev Ridge 1")
 
-def basic_plot(metrics, models=None, trivial=1.0):
+
+def basic_plot(metrics, models=None, trivial=1.0, ylim=5):
     fig, ax = plt.subplots(1, 1)
 
     if models is not None:
@@ -64,7 +75,7 @@ def basic_plot(metrics, models=None, trivial=1.0):
     ax.set_xlabel("in-context examples")
     ax.set_ylabel("squared error")
     #ax.set_xlim(-1, len(low) + 0.1)
-    ax.set_ylim(-0.1, 10)
+    ax.set_ylim(-0.05, ylim)
 
     legend = ax.legend(loc="upper left", bbox_to_anchor=(1, 1))
     fig.set_size_inches(4, 3)
@@ -74,7 +85,7 @@ def basic_plot(metrics, models=None, trivial=1.0):
     return fig, ax
 
 
-def collect_results(run_dir, df, valid_row=None, rename_eval=None, rename_model=None):
+def collect_results(run_dir, df, valid_row=None, rename_eval=None, rename_model=None, smoothing=0):
     all_metrics = {}
     for _, r in df.iterrows():
         if valid_row is not None and not valid_row(r):
@@ -84,17 +95,22 @@ def collect_results(run_dir, df, valid_row=None, rename_eval=None, rename_model=
         _, conf = get_model_from_run(run_path, only_conf=True)
 
         print(r.run_name, r.run_id)
-        metrics = get_run_metrics(run_path, skip_model_load=True)
+        metrics = get_run_metrics(run_path, skip_model_load=True, smoothing=smoothing)
         print(metrics)
         for eval_name, results in sorted(metrics.items()):
             processed_results = {}
+            print(eval_name)
             for model_name, m in results.items():
                 if "gpt2" in model_name in model_name:
+                    old_model_name = model_name
                     model_name = r.model
+                    if "noise" in old_model_name:
+                        model_name += " N(0, " + str(old_model_name.split("_")[-2]) + ") Noise"
                     if rename_model is not None:
                         model_name = rename_model(model_name, r)
                 else:
                     model_name = baseline_names(model_name)
+                    print(model_name)
                 m_processed = {}
                 n_dims = conf.model.n_dims
 

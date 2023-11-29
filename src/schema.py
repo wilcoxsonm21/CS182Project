@@ -32,6 +32,7 @@ curriculum_base_schema = {
 curriculum_schema = {
     "dims": stdict(curriculum_base_schema),
     "points": stdict(curriculum_base_schema),
+    "deg": stdict(curriculum_base_schema),
 }
 
 TASK_LIST = [
