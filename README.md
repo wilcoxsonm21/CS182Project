@@ -13,21 +13,16 @@ You can start by cloning our repository and following the steps below.
     conda activate in-context-learning
     ```
 
-2. Download [model checkpoints](https://github.com/dtsip/in-context-learning/releases/download/initial/models.zip) and extract them in the current directory.
-
-    ```
-    wget https://github.com/dtsip/in-context-learning/releases/download/initial/models.zip
-    unzip models.zip
-    ```
+2. Download model checkpoints from the link provided in `example_checkpoint.txt` to `../models/`
 
 3. [Optional] If you plan to train, populate `conf/wandb.yaml` with you wandb info.
 
 That's it! You can now explore our pre-trained models or train your own. The key entry points
 are as follows (starting from `src`):
-- The `eval.ipynb` notebook contains code to load our own pre-trained models, plot the pre-computed metrics, and evaluate them on new data.
-- `train.py` takes as argument a configuration yaml from `conf` and trains the corresponding model. You can try `python train.py --config conf/toy.yaml` for a quick training run.
+- The `test.ipynb` notebook contains code to load our own pre-trained models, plot the pre-computed metrics, and evaluate them on new data.
+- `train.py` takes as argument a configuration yaml from `conf` and trains the corresponding model. You can try `python train.py --config conf/toy_chebyshev.yaml` for a quick training run.
 
-Codebase Forked From the Below Paper: 
+Codebase Forked From the Below Paper: <br>
 **What Can Transformers Learn In-Context? A Case Study of Simple Function Classes** <br>
 *Shivam Garg\*, Dimitris Tsipras\*, Percy Liang, Gregory Valiant* <br>
 Paper: http://arxiv.org/abs/2208.01066 <br><br>
