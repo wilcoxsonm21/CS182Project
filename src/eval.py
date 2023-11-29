@@ -210,12 +210,8 @@ def eval_model(
     for i in range(num_eval_examples // batch_size):
         xs, xs_p = generating_func(data_sampler, n_points, batch_size)
         if not isinstance(model, models.TransformerModel):
-            print("model type: ", type(model))
-            print(include_noise)
             metrics = eval_batch(model, task_sampler, xs, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=0)
         else:
-            print(model)
-            print("smoothed!")
             metrics = eval_batch(model, task_sampler, xs, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing)
         all_metrics.append(metrics)
 
@@ -321,22 +317,22 @@ def compute_evals(all_models, evaluation_kwargs, save_path=None, recompute=False
 
     return all_metrics
 
-def compute_evals_basis(transformer_model, evaluation_kwargs, save_path=None, recompute=False, include_noise=True, ground_truth_loss=False, smoothing=0):
+def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, recompute=False, include_noise=True, ground_truth_loss=False, smoothing=0):
     try:
         with open(save_path) as fp:
             all_metrics = json.load(fp)
     except Exception:
         print("no metrics found")
-        1/0
         all_metrics = {}
     standard_args = evaluation_kwargs["standard"]
     for i in range(1, 12):
         metrics = {}
         baselines =  get_relevant_baselines_for_degree(i)
-        baselines += [transformer_model]
+        baselines += transformer_models
         if "degree-" + str(i) in all_metrics and not recompute:
             metrics = all_metrics["degree-" + str(i)]
         for model in baselines:
+            print(model.name)
             if model.name in metrics and not recompute:
                 continue
             standard_args["task_sampler_kwargs"] = {"basis_dim": i,} # TODO: fix this]
@@ -352,10 +348,22 @@ def compute_evals_basis(transformer_model, evaluation_kwargs, save_path=None, re
 
 
 def get_run_metrics(
-    run_path, step=-1, cache=True, skip_model_load=False, skip_baselines=False, include_noise=True, ground_truth_loss=False, smoothing=0):
+    run_path, run_path_2=None, run_path_3=None, step=-1, cache=True, skip_model_load=False, skip_baselines=False, include_noise=True, ground_truth_loss=False, smoothing=0):
     model, conf = get_model_from_run(run_path, step)
     transformer_model = model.cuda().eval()
     evaluation_kwargs = build_evals(conf)
+
+    transformer_models = [transformer_model]
+    if run_path_2 is not None:
+        model_2, conf_2 = get_model_from_run(run_path_2, step)
+        model_2.name += "_0.2_noise"
+        transformer_model_2 = model_2.cuda().eval()
+        transformer_models.append(transformer_model_2)
+    if run_path_3 is not None:
+        model_3, conf_3 = get_model_from_run(run_path_3, step)
+        model_3.name += "_0.5_noise"
+        transformer_model_3 = model_3.cuda().eval()
+        transformer_models.append(transformer_model_3)
 
     if not cache:
         save_path = None
@@ -374,7 +382,7 @@ def get_run_metrics(
         if checkpoint_created > cache_created:
             recompute = True
 
-    all_metrics = compute_evals_basis(transformer_model, evaluation_kwargs, save_path, recompute, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing)
+    all_metrics = compute_evals_basis(transformer_models, evaluation_kwargs, save_path, recompute, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing)
     print(all_metrics)
     return all_metrics
 

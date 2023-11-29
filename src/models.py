@@ -88,9 +88,9 @@ def get_relevant_baselines(task_name):
 
 def get_relevant_baselines_for_degree(degree):
     task_for_degree =  [
-    #        (KernelLeastSquaresModel, {"basis_dim": degree}), #TODO: Avoid hard coding
+     #       (KernelLeastSquaresModel, {"basis_dim": degree}), #TODO: Avoid hard coding
             (ChebyshevKernelLeastSquaresModel, {"basis_dim": degree}),
-            (ChebyshevKernelLeastSquaresModelWithRidge, {"basis_dim": degree}),
+        (ChebyshevKernelLeastSquaresModelWithRidge, {"basis_dim": degree}),
         ]
     #if degree < 11:
     #    task_for_degree += [(ChebyshevKernelLeastSquaresModelWithRidge, {"basis_dim": degree + 1})]
@@ -300,13 +300,9 @@ class ChebyshevKernelLeastSquaresModel(LeastSquaresModel):
         expanded_basis = expanded_basis @ self.chebyshev_coeffs.T
         xs, ys = expanded_basis.cpu(), ys.cpu()
         A = torch.bmm(xs.transpose(1, 2), xs)
-        print("A shape:", A.shape)
         C = A
-        print("C shape:", C.shape)
         D = torch.linalg.inv(C)
-        print("D shape:", D.shape)
         E = torch.bmm(D, xs.transpose(1, 2))
-        print("E shape:", E.shape)
         ws = torch.bmm(E, ys.unsqueeze(2))
         def predict(xs):
             expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*(self.basis_dim + 1))
@@ -358,22 +354,12 @@ class ChebyshevKernelLeastSquaresModelWithRidge(LeastSquaresModel):
                 continue
             train_xs, train_ys = xs[:, :i], ys[:, :i]
             test_x = xs[:, i : i + 1]
-            print(train_xs.shape)
-            print(train_ys.shape)
             A = torch.bmm(train_xs.transpose(1, 2), train_xs)
-            print("A shape:", A.shape)
             B = 0.5*torch.eye(train_xs.shape[2]).unsqueeze(0).repeat(train_xs.shape[0], 1, 1)
-            print("B shape:", B.shape)
             C = A + B
-            print("C shape:", C.shape)
             D = torch.linalg.inv(C)
-            print("D shape:", D.shape)
             E = torch.bmm(D, train_xs.transpose(1, 2))
-            print("E shape:", E.shape)
             ws = torch.bmm(E, train_ys.unsqueeze(2))
-            print("ws shape:", ws.shape)
-            #print(ws)
-            #print(ws.shape)
             pred = test_x @ ws
             preds.append(pred[:, 0, 0])
 

@@ -50,8 +50,7 @@ relevant_model_names = {
 
 def get_model_names_for_degree(degree):
     names = ["Transformer",
-            "Transformer-16",
-            "Transformer Smoothed",
+            "Transformer Curriculum",
         "Chebyshev " + str(degree),
         "Kernel Least Squares " + str(degree),
         "Chebyshev Ridge " + str(degree),]
@@ -105,7 +104,10 @@ def collect_results(run_dir, df, valid_row=None, rename_eval=None, rename_model=
             print(eval_name)
             for model_name, m in results.items():
                 if "gpt2" in model_name in model_name:
+                    old_model_name = model_name
                     model_name = r.model
+                    if "noise" in old_model_name:
+                        model_name += " N(0, " + str(old_model_name.split("_")[-2]) + ") Noise"
                     if rename_model is not None:
                         model_name = rename_model(model_name, r)
                 else:
