@@ -1,6 +1,6 @@
 This repository contains the code and models for our CS182 Fall 2023 Project:
 ## **Polynomial Regression Using In-Context Learning with Transformer Models**
-Ria Doshi*, Stefanie Gshwind*, Carolyn Wang*, Max Wilcoxson* <br>
+Ria Doshi*, Stefanie Gschwind*, Carolyn Wang*, Max Wilcoxson* <br>
 
 
 ## Getting started
