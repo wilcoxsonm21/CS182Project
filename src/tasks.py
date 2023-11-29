@@ -191,7 +191,7 @@ class KernelLinearRegression(LinearRegression):
     
     def evaluate(self, xs_b):
         #random = np.random.randint(0, self.basis_dim)
-        random = self.basis_dim - 1 #TODO remove, testing if we can learn a model that just works for basis dim 4
+        random = self.basis_dim - 1
         basis_dim = random + 1
         expanded_basis = torch.zeros(*xs_b.shape[:-1], xs_b.shape[-1]*basis_dim)
         for i in range(basis_dim):
@@ -200,7 +200,7 @@ class KernelLinearRegression(LinearRegression):
             # And another coefficient that is inverse of sqrt of variance for total basis dim since variance is additive
             expanded_basis[..., i*xs_b.shape[-1]:(i+1)*xs_b.shape[-1]] = (1/math.sqrt(basis_dim))*(1/math.sqrt(self.getNthDegreeVariance(i + 1)))*(xs_b**(i + 1))
         expanded_basis.to(xs_b.device)
-        standard = self.tasks[random].evaluate(expanded_basis) #TODO: Note that we are using log to make the scales
+        standard = self.tasks[random].evaluate(expanded_basis) # Note that we are using log to make the scales
         if self.shift is None:
             self.shift = 100*torch.min(standard) - 1e-5
         

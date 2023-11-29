@@ -88,7 +88,6 @@ def get_imputed_ys(model, task, xs, test_x, smoothing = 0):
 
 # Functions for generating different kinds of train/test data
 
-
 def gen_standard(data_sampler, n_points, b_size):
     xs = data_sampler.sample_xs(n_points, b_size)
 
@@ -196,9 +195,7 @@ def eval_model(
        - **sampler_kwargs: remaining arguments to pass directly to the sampler
     """
     assert num_eval_examples % batch_size == 0
-    #print(model)
-    #print(task_name)
-    #print(task_sampler_kwargs)
+
     data_sampler = get_data_sampler(data_name, n_dims, **data_sampler_kwargs)
     task_sampler = get_task_sampler(
         task_name, n_dims, batch_size, **task_sampler_kwargs
@@ -332,7 +329,6 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
         if "degree-" + str(i) in all_metrics and not recompute:
             metrics = all_metrics["degree-" + str(i)]
         for model in baselines:
-            print(model.name)
             if model.name in metrics and not recompute:
                 continue
             standard_args["task_sampler_kwargs"] = {"basis_dim": i,} # TODO: fix this]
@@ -465,7 +461,6 @@ def read_run_dir(run_dir):
     df = pd.DataFrame(all_runs).sort_values("run_name")
     print(df.run_name.unique())
     print(df)
-    # assert len(df) == len(df.run_name.unique())
     return df
 
 if __name__ == "__main__":

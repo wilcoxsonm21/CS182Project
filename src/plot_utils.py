@@ -14,8 +14,6 @@ relevant_model_names = {
     "kernel_linear_regression": [
         "Transformer",
         "Transformer-16",
-        #"Kernel Least Squares 2",
-        #"Kernel Least Squares 3",
         "Kernel Least Squares 11",
         "Chebyshev",
         "Chebyshev Ridge",

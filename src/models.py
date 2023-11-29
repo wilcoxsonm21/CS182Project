@@ -30,13 +30,9 @@ def build_model(conf):
 def get_relevant_baselines(task_name):
     task_to_baselines = {
         "kernel_linear_regression": [
-            #(KernelLeastSquaresModel, {"basis_dim": 2}),
-            #(KernelLeastSquaresModel, {"basis_dim": 3}),
             (KernelLeastSquaresModel, {"basis_dim": 11}), #TODO: Avoid hard coding
             (ChebyshevKernelLeastSquaresModel, {"basis_dim": 11}),
             (ChebyshevKernelLeastSquaresModelWithRidge, {"basis_dim": 11}),
-            #(NNModel, {"n_neighbors": 3}),
-            #(AveragingModel, {}),
         ],
         "linear_regression": [
             (LeastSquaresModel, {}),
@@ -88,14 +84,10 @@ def get_relevant_baselines(task_name):
 
 def get_relevant_baselines_for_degree(degree):
     task_for_degree =  [
-     #       (KernelLeastSquaresModel, {"basis_dim": degree}), #TODO: Avoid hard coding
             (ChebyshevKernelLeastSquaresModel, {"basis_dim": degree}),
         (ChebyshevKernelLeastSquaresModelWithRidge, {"basis_dim": degree}),
         ]
-    #if degree < 11:
-    #    task_for_degree += [(ChebyshevKernelLeastSquaresModelWithRidge, {"basis_dim": degree + 1})]
-    #if degree > 1:
-    #    task_for_degree += [(ChebyshevKernelLeastSquaresModelWithRidge, {"basis_dim": degree - 1})]
+
     models = [model_cls(**kwargs) for model_cls, kwargs in task_for_degree]
     return models
 
@@ -152,7 +144,7 @@ class TransformerModel(nn.Module):
 
 class NNModel:
     def __init__(self, n_neighbors, weights="uniform"):
-        # should we be picking k optimally
+
         self.n_neighbors = n_neighbors
         self.weights = weights
         self.name = f"NN_n={n_neighbors}_{weights}"
@@ -220,8 +212,7 @@ class LeastSquaresModel:
             ws, _, _, _ = torch.linalg.lstsq(
                 train_xs, train_ys.unsqueeze(2), driver=self.driver
             )
-            #print(ws)
-            #print(ws.shape)
+
             pred = test_x @ ws
             preds.append(pred[:, 0, 0])
 
@@ -241,10 +232,6 @@ class KernelLeastSquaresModel(LeastSquaresModel):
             # This involves a coefficient that is inverse of variance for each power of x
             # And another coefficient that is inverse of sqrt of variance for total basis dim since variance is additive
             expanded_basis[..., i*xs.shape[-1]:(i+1)*xs.shape[-1]] = xs**i
-        #print(xs.shape, expanded_basis.shape)
-        #print(xs)
-        #print(expanded_basis)
-        #print("MODEL")
         return super().__call__(expanded_basis, ys, inds)
 
 class ChebyshevKernelLeastSquaresModel(LeastSquaresModel):
@@ -388,15 +375,10 @@ class ChebyshevKernelLeastSquaresModelWithRidge(LeastSquaresModel):
         expanded_basis = expanded_basis @ self.chebyshev_coeffs.T
         xs, ys = expanded_basis.cpu(), ys.cpu()
         A = torch.bmm(xs.transpose(1, 2), xs)
-        print("A shape:", A.shape)
         B = 0.5*torch.eye(xs.shape[2]).unsqueeze(0).repeat(xs.shape[0], 1, 1)
-        print("B shape:", B.shape)
         C = A + B
-        print("C shape:", C.shape)
         D = torch.linalg.inv(C)
-        print("D shape:", D.shape)
         E = torch.bmm(D, xs.transpose(1, 2))
-        print("E shape:", E.shape)
         ws = torch.bmm(E, ys.unsqueeze(2))
         def predict(xs):
             expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*(self.basis_dim + 1))
