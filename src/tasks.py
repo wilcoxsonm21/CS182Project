@@ -155,7 +155,7 @@ class ChebyshevKernelLinearRegression(Task):
             self.mask = mask
         self.w_b = (combinations @ self.chebyshev_coeffs).unsqueeze(2)
 
-    def evaluate(self, xs_b, noise=True, separate_noise=False, noise_variance=0.5):
+    def evaluate(self, xs_b, noise=True, separate_noise=False, noise_variance=0.2):
         expanded_basis = torch.zeros(*xs_b.shape[:-1], xs_b.shape[-1]*(self.basis_dim + 1))
         for i in range(self.basis_dim + 1): #we are also adding the constant term
             expanded_basis[..., i*xs_b.shape[-1]:(i+1)*xs_b.shape[-1]] = xs_b**i

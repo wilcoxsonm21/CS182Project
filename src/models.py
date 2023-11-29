@@ -355,7 +355,7 @@ class ChebyshevKernelLeastSquaresModelWithRidge(LeastSquaresModel):
             train_xs, train_ys = xs[:, :i], ys[:, :i]
             test_x = xs[:, i : i + 1]
             A = torch.bmm(train_xs.transpose(1, 2), train_xs)
-            B = 0.5*torch.eye(train_xs.shape[2]).unsqueeze(0).repeat(train_xs.shape[0], 1, 1)
+            B = 0.2*torch.eye(train_xs.shape[2]).unsqueeze(0).repeat(train_xs.shape[0], 1, 1)
             C = A + B
             D = torch.linalg.inv(C)
             E = torch.bmm(D, train_xs.transpose(1, 2))

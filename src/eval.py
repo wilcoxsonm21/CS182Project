@@ -71,14 +71,14 @@ def get_imputed_ys(model, task, xs, test_x, smoothing = 0):
     predictions = []
     for i in range(test_x.shape[1]):
         center = test_x[:, i, :].unsqueeze(0)
-        perturbations = np.arange(-1 * smoothing + center, smoothing + center, 0.0001)
+        perturbations = np.arange(-1 * smoothing + center, smoothing + center + 0.0002, 0.0002)
         batched_eval = torch.zeros(len(perturbations), xs.shape[1] + 1, xs.shape[2])
         for j in range(len(perturbations)):
             expanded = torch.as_tensor(perturbations[j]).unsqueeze(0).unsqueeze(1).unsqueeze(2)
             expanded = expanded.float()
             batched_eval[j] = torch.cat([xs, expanded], dim=1)
         cur_xs = torch.cat((xs, center), dim=1)
-        ys, noise = task.evaluate(cur_xs)          
+        ys, noise = task.evaluate(cur_xs, noise=True, separate_noise=True)          
         ys = ys + noise
         ys = ys.repeat(len(perturbations), 1, 1).squeeze(1)    
         pred = model(batched_eval.to(device), ys.to(device)).detach()
