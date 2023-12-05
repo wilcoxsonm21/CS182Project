@@ -4,7 +4,7 @@ import torch
 
 import numpy as np
 import numpy as np
-
+from models import *
 
 def squared_error(ys_pred, ys):
     return (ys - ys_pred).square()
@@ -103,7 +103,6 @@ class LinearRegression(Task):
         print(w_b.shape)
         print(xs_b.shape)
         print((xs_b @ w_b).shape)
-        1/0
         ys_b = self.scale * (xs_b @ w_b)[:, :, 0]
         return ys_b
 
@@ -120,11 +119,11 @@ class LinearRegression(Task):
         return mean_squared_error
 
 class ChebyshevKernelLinearRegression(Task):
-    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1, different_degrees=False, lowest_degree=1, highest_degree=1):
+    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1, different_degrees=False, lowest_degree=1, highest_degree=1, curriculum=None):
         """scale: a constant by which to scale the randomly sampled weights."""
-        #print(basis_dim)
         super(ChebyshevKernelLinearRegression, self).__init__(n_dims, batch_size, pool_dict, seeds)
         self.basis_dim = basis_dim
+        self.curriculum = curriculum
         self.highest_degree = highest_degree
         self.diff_poly_degree = different_degrees 
         self.lowest_degree = lowest_degree
@@ -144,44 +143,32 @@ class ChebyshevKernelLinearRegression(Task):
         ], dtype=torch.float)
         
         self.chebyshev_coeffs = self.chebyshev_coeffs[:self.basis_dim + 1, :self.basis_dim + 1]
-        #combinations = torch.randn(size=(self.b_size, self.basis_dim + 1))
-        studentsT = torch.distributions.StudentT(1)
-        combinations = studentsT.sample(sample_shape=(self.b_size, self.basis_dim + 1))
-
+        combinations = torch.randn(size=(self.b_size, self.basis_dim + 1))
         if self.diff_poly_degree:
             mask = torch.ones(combinations.shape[0], combinations.shape[-1], dtype=torch.float32)
+            if curriculum:
+                self.highest_degree = curriculum.highest_degree
             indices = torch.randint(self.lowest_degree, self.highest_degree + 1, (combinations.shape[0], 1))    # Note the dimensions
+            self.indices = indices
             mask[torch.arange(0, combinations.shape[-1], dtype=torch.float32).repeat(combinations.shape[0],1) >= indices] = 0
             import ipdb;ipdb.set_trace()
             combinations = torch.mul(combinations, mask)
-        print(combinations)
-        combinations /= torch.sum(torch.abs(combinations), dim=1).unsqueeze(1)
-        print(combinations)
+            self.mask = mask
         self.w_b = (combinations @ self.chebyshev_coeffs).unsqueeze(2)
-        print(self.w_b)
-    def evaluate(self, xs_b):
-        #print("xs_b: ", xs_b.shape)
-        # print(xs_b)
 
-        degree = torch.randint(1, self.highest_degree + 1, size=(self.b_size, 1))
+    def evaluate(self, xs_b, noise=True, separate_noise=False, noise_variance=0.5):
         expanded_basis = torch.zeros(*xs_b.shape[:-1], xs_b.shape[-1]*(self.basis_dim + 1))
         for i in range(self.basis_dim + 1): #we are also adding the constant term
-            # We want to normalize the input so the output has the same variance indepedent of basis dimension
-            # This involves a coefficient that is inverse of variance for each power of x
-            # And another coefficient that is inverse of sqrt of variance for total basis dim since variance is additive
             expanded_basis[..., i*xs_b.shape[-1]:(i+1)*xs_b.shape[-1]] = xs_b**i
-        expanded_basis.to(xs_b.device)
-
-        
-        
+        expanded_basis.to(xs_b.device)        
         w_b = self.w_b.to(xs_b.device)
-        print(w_b)
-        print(expanded_basis)
         ys_b = (expanded_basis @ w_b)[:, :, 0]
-        print(ys_b)
-
-        assert torch.max(ys_b) <= 1 and torch.min(ys_b) >= -1
-        return ys_b
+        if noise and not separate_noise:
+            return ys_b + math.sqrt(noise_variance) * torch.randn_like(ys_b)
+        elif noise and separate_noise:
+            return ys_b, math.sqrt(noise_variance) * torch.randn_like(ys_b)
+        else:
+            return ys_b
 
     @staticmethod
     def generate_pool_dict(n_dims, num_tasks, **kwargs):  # ignore extra args
@@ -191,8 +178,7 @@ class ChebyshevKernelLinearRegression(Task):
     def get_metric():
         return squared_error
 
-    @staticmethod
-    def get_training_metric():
+    def get_training_loss(self):
         return mean_squared_error
     
 class KernelLinearRegression(LinearRegression):
@@ -206,7 +192,7 @@ class KernelLinearRegression(LinearRegression):
     
     def evaluate(self, xs_b):
         #random = np.random.randint(0, self.basis_dim)
-        random = self.basis_dim - 1 #TODO remove, testing if we can learn a model that just works for basis dim 4
+        random = self.basis_dim - 1
         basis_dim = random + 1
         expanded_basis = torch.zeros(*xs_b.shape[:-1], xs_b.shape[-1]*basis_dim)
         for i in range(basis_dim):
@@ -215,7 +201,7 @@ class KernelLinearRegression(LinearRegression):
             # And another coefficient that is inverse of sqrt of variance for total basis dim since variance is additive
             expanded_basis[..., i*xs_b.shape[-1]:(i+1)*xs_b.shape[-1]] = (1/math.sqrt(basis_dim))*(1/math.sqrt(self.getNthDegreeVariance(i + 1)))*(xs_b**(i + 1))
         expanded_basis.to(xs_b.device)
-        standard = self.tasks[random].evaluate(expanded_basis) #TODO: Note that we are using log to make the scales
+        standard = self.tasks[random].evaluate(expanded_basis) # Note that we are using log to make the scales
         if self.shift is None:
             self.shift = 100*torch.min(standard) - 1e-5
         

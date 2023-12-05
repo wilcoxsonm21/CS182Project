@@ -65,7 +65,5 @@ class UniformSampler(DataSampler):
 
     def sample_xs(self, n_points, b_size, n_dims_truncated=None, seeds=None):
         xs_b = 2*torch.rand(b_size, n_points, self.n_dims) - 1
-        #print(xs_b.shape)
-        #print(xs_b)
         assert torch.min(xs_b) >= -1 and torch.max(xs_b) <= 1
         return xs_b #increasing the variance to sample from N(0, 4I), will see if this breaks performance
