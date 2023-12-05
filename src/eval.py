@@ -63,25 +63,24 @@ def eval_batch(model, task_sampler, xs, include_noise=True, ground_truth_loss=Fa
         metrics = task.get_metric()(predictions, ys)
     return metrics
 
-def get_imputed_ys(model, task, xs, test_x, smoothing = 0):
+def get_imputed_ys(model, task, xs, ys, test_x, noise=False, smoothing = 0):
     if torch.cuda.is_available() and model.name.split("_")[0] in ["gpt2", "lstm"]:
         device = "cuda"
     else:
         device = "cpu"
     predictions = []
+    next_ys = task.evaluate(test_x, noise=noise)
     for i in range(test_x.shape[1]):
         center = test_x[:, i, :].unsqueeze(0)
-        perturbations = np.arange(-1 * smoothing + center, smoothing + center, 0.0001)
+        perturbations = np.arange(-1 * smoothing + center, smoothing + center + 0.0002, 0.0002)
         batched_eval = torch.zeros(len(perturbations), xs.shape[1] + 1, xs.shape[2])
         for j in range(len(perturbations)):
             expanded = torch.as_tensor(perturbations[j]).unsqueeze(0).unsqueeze(1).unsqueeze(2)
             expanded = expanded.float()
             batched_eval[j] = torch.cat([xs, expanded], dim=1)
-        cur_xs = torch.cat((xs, center), dim=1)
-        ys, noise = task.evaluate(cur_xs)          
-        ys = ys + noise
-        ys = ys.repeat(len(perturbations), 1, 1).squeeze(1)    
-        pred = model(batched_eval.to(device), ys.to(device)).detach()
+        cur_ys = torch.cat([ys, next_ys[:,i].unsqueeze(0)], dim=1)        
+        cur_ys = cur_ys.repeat(len(perturbations), 1, 1).squeeze(1)    
+        pred = model(batched_eval.to(device), cur_ys.to(device)).detach()
         predictions.append(pred.cpu().mean(dim=0)[-1])
     result = torch.stack(predictions, dim=0)
     return result
@@ -345,14 +344,15 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
 
 def get_run_metrics(
     run_path, run_path_2=None, run_path_3=None, step=-1, cache=True, skip_model_load=False, skip_baselines=False, include_noise=True, ground_truth_loss=False, smoothing=0):
-    model, conf = get_model_from_run(run_path, step)
+    model, conf = get_model_from_run(run_path, 500000)
+    model.name += "_2048_batch"
     transformer_model = model.cuda().eval()
     evaluation_kwargs = build_evals(conf)
 
     transformer_models = [transformer_model]
     if run_path_2 is not None:
-        model_2, conf_2 = get_model_from_run(run_path_2, step)
-        model_2.name += "_0.2_noise"
+        model_2, conf_2 = get_model_from_run(run_path_2, 500000)
+        model_2.name += "_64_batch"
         transformer_model_2 = model_2.cuda().eval()
         transformer_models.append(transformer_model_2)
     if run_path_3 is not None:

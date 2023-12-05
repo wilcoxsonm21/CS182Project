@@ -155,7 +155,7 @@ class ChebyshevKernelLinearRegression(Task):
             self.mask = mask
         self.w_b = (combinations @ self.chebyshev_coeffs).unsqueeze(2)
 
-    def evaluate(self, xs_b, noise=True, separate_noise=False, noise_variance=0.5):
+    def evaluate(self, xs_b, noise=False, separate_noise=False, noise_variance=0.2):
         expanded_basis = torch.zeros(*xs_b.shape[:-1], xs_b.shape[-1]*(self.basis_dim + 1))
         for i in range(self.basis_dim + 1): #we are also adding the constant term
             expanded_basis[..., i*xs_b.shape[-1]:(i+1)*xs_b.shape[-1]] = xs_b**i
@@ -167,7 +167,10 @@ class ChebyshevKernelLinearRegression(Task):
         elif noise and separate_noise:
             return ys_b, math.sqrt(noise_variance) * torch.randn_like(ys_b)
         else:
-            return ys_b
+            if separate_noise:
+                return ys_b, torch.zeros_like(ys_b)
+            else:
+                return ys_b
 
     @staticmethod
     def generate_pool_dict(n_dims, num_tasks, **kwargs):  # ignore extra args
