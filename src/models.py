@@ -300,11 +300,13 @@ class ChebyshevKernelLeastSquaresModel(LeastSquaresModel):
         return predict
     
 class ChebyshevKernelLeastSquaresModelWithRidge(LeastSquaresModel):
-    def __init__(self, basis_dim:int = 1, driver = None, random=True):
+    def __init__(self, basis_dim:int = 1, ridge = 0.2, driver = None, random=True):
         super().__init__(driver)
         self.basis_dim = basis_dim
         self.name = f"ridge_chebyshev_{basis_dim}_driver={driver}"
         self.random = random
+        self.ridge = ridge
+        print(self.ridge)
     
     def __call__(self, xs, ys, inds=None):
         expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*(self.basis_dim + 1))
@@ -342,7 +344,7 @@ class ChebyshevKernelLeastSquaresModelWithRidge(LeastSquaresModel):
             train_xs, train_ys = xs[:, :i], ys[:, :i]
             test_x = xs[:, i : i + 1]
             A = torch.bmm(train_xs.transpose(1, 2), train_xs)
-            B = 0.5*torch.eye(train_xs.shape[2]).unsqueeze(0).repeat(train_xs.shape[0], 1, 1)
+            B = self.ridge*torch.eye(train_xs.shape[2]).unsqueeze(0).repeat(train_xs.shape[0], 1, 1)
             C = A + B
             D = torch.linalg.inv(C)
             E = torch.bmm(D, train_xs.transpose(1, 2))
@@ -375,7 +377,7 @@ class ChebyshevKernelLeastSquaresModelWithRidge(LeastSquaresModel):
         expanded_basis = expanded_basis @ self.chebyshev_coeffs.T
         xs, ys = expanded_basis.cpu(), ys.cpu()
         A = torch.bmm(xs.transpose(1, 2), xs)
-        B = 0.5*torch.eye(xs.shape[2]).unsqueeze(0).repeat(xs.shape[0], 1, 1)
+        B = self.ridge*torch.eye(xs.shape[2]).unsqueeze(0).repeat(xs.shape[0], 1, 1)
         C = A + B
         D = torch.linalg.inv(C)
         E = torch.bmm(D, xs.transpose(1, 2))
