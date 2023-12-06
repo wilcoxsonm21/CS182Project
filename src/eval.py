@@ -351,7 +351,7 @@ def get_run_metrics(
 
     transformer_models = [transformer_model]
     if run_path_2 is not None:
-        model_2, conf_2 = get_model_from_run(run_path_2, 500000)
+        model_2, conf_2 = get_model_from_run(run_path_2, step)
         model_2.name += "_64_batch"
         transformer_model_2 = model_2.cuda().eval()
         transformer_models.append(transformer_model_2)
