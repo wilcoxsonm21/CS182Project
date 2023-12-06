@@ -13,14 +13,19 @@ You can start by cloning our repository and following the steps below.
     conda activate in-context-learning
     ```
 
-2. Download model checkpoints from the link provided in `example_checkpoint.txt` to `../models/kernel_linear_regression`
+2. To train a Polynomial Regression Model run the following line in your terminal: 
 
-3. [Optional] If you plan to train, populate `conf/wandb.yaml` with you wandb info.
+    ```
+    python train.py --config conf/toy_chebyshev.yaml
+    ```
 
-That's it! You can now explore our pre-trained models or train your own. The key entry points
-are as follows (starting from `src`):
-- The `test.ipynb` notebook contains code to load our own pre-trained model from the curriculum learning experiment and plot the model performance. You can toggle the noise flag to see how the model performs on noisy data. 
-- `train.py` takes as argument a configuration yaml from `conf` and trains the corresponding model. You can try `python train.py --config conf/toy_chebyshev.yaml` for a training run. This will take about 6-7 hours to run on a single NVIDIA 3090. 
+    Edit the toy_chebyshev.yaml file you want to change aspects of the model or training such as: batch size, learning rate, # training steps, the range of polynomial degrees the model is trained on, or other aspects of the curriculum. Two brief notes on changing the range of the polynomial degrees for training:
+        i. To change the lowest degree polynomial seen, change the "lowest_degree" value inside of the 'task_kwargs' dictionary
+        ii. To change the highest degree polynomial seen, chnage BOTH the 'start' and 'end' parameters found under 'deg' to the degree value you want it to be
+
+    To change whether or not you have noise in your training you need to edit the tasks.py file in two locations. Inside of the tasks.py file, change the 'noise' flag in the evaluate function definition (line 159) to 'True' and set the noise_variance to be your desired value. Also in tasks.py file in the init of NoisyLinearRegression, set the 'noise_std' to your desired value.
+    
+3. To evaluate your model:
 
 Codebase Forked From the Below Paper: <br>
 **What Can Transformers Learn In-Context? A Case Study of Simple Function Classes** <br>
