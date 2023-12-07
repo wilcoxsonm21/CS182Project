@@ -23,7 +23,7 @@ You can start by cloning our repository and following the steps below.
         i. To change the lowest degree polynomial seen, change the "lowest_degree" value inside of the 'task_kwargs' dictionary
         ii. To change the highest degree polynomial seen, chnage BOTH the 'start' and 'end' parameters found under 'deg' to the degree value you want it to be
 
-    To change whether or not you have noise in your training you need to edit the tasks.py file in two locations. Inside of the tasks.py file, change the 'noise' flag in the evaluate function definition (line 159) to 'True' and set the noise_variance to be your desired value. Also in tasks.py file in the init of NoisyLinearRegression, set the 'noise_std' to your desired value.
+    To change whether or not you have noise in your training you need to edit the tasks.py file in one location. Inside of the tasks.py file, change the 'noise' flag in the evaluate function definition (line 158) to 'True' and set the noise_variance to be your desired value.
     
 3. To evaluate your model:
    The test.ipynb notebook contains code to load our own pre-trained model from the curriculum learning experiment and plot the model performance. You can toggle the noise flag to see how the model performs on noisy data.
