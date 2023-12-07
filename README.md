@@ -13,7 +13,7 @@ You can start by cloning our repository and following the steps below.
     conda activate in-context-learning
     ```
 
-2. To train a Polynomial Regression Model make sure you are on the branch 'sanity-checks' and run the following line in your terminal: 
+2. To train a Polynomial Regression Model run the following line in your terminal: 
 
     ```
     python train.py --config conf/toy_chebyshev.yaml
