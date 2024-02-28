@@ -183,44 +183,6 @@ class ChebyshevKernelLinearRegression(Task):
     def get_training_loss(self):
         return mean_squared_error
     
-class KernelLinearRegression(LinearRegression):
-    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1): #TODO only supports axis alligned 
-        """scale: a constant by which to scale the randomly sampled weights."""
-        self.tasks = []
-        self.basis_dim = basis_dim
-        self.shift = None
-        for i in range(self.basis_dim):
-            self.tasks.append(LinearRegression(n_dims*(i + 1), batch_size, pool_dict, seeds, scale))
-    
-    def evaluate(self, xs_b):
-        #random = np.random.randint(0, self.basis_dim)
-        random = self.basis_dim - 1
-        basis_dim = random + 1
-        expanded_basis = torch.zeros(*xs_b.shape[:-1], xs_b.shape[-1]*basis_dim)
-        for i in range(basis_dim):
-            # We want to normalize the input so the output has the same variance indepedent of basis dimension
-            # This involves a coefficient that is inverse of variance for each power of x
-            # And another coefficient that is inverse of sqrt of variance for total basis dim since variance is additive
-            expanded_basis[..., i*xs_b.shape[-1]:(i+1)*xs_b.shape[-1]] = (1/math.sqrt(basis_dim))*(1/math.sqrt(self.getNthDegreeVariance(i + 1)))*(xs_b**(i + 1))
-        expanded_basis.to(xs_b.device)
-        standard = self.tasks[random].evaluate(expanded_basis) # Note that we are using log to make the scales
-        if self.shift is None:
-            self.shift = 100*torch.min(standard) - 1e-5
-        
-        return standard - self.shift
-        
-    
-    # Returns the expectation of X^n where X is a standard normal random variable
-    def getNthDegreeExpectation(self, n):
-        if n % 2 == 0:
-            return math.factorial(n) / (2**(n/2) * math.factorial(n/2))
-        else:
-            return 0
-    
-    # Returns the variance of X^n where X is a standard normal random variable
-    def getNthDegreeVariance(self, n):
-        return self.getNthDegreeExpectation(2*n) - self.getNthDegreeExpectation(n)**2        
-
 class SparseLinearRegression(LinearRegression):
     def __init__(
         self,

@@ -104,12 +104,20 @@ def collect_results(run_dir, df, valid_row=None, rename_eval=None, rename_model=
                 if "gpt2" in model_name in model_name:
                     old_model_name = model_name
                     model_name = r.model
+                    if "layer=12" in old_model_name:
+                        model_name = "Transformer"
+                    else:
+                        model_name = "Transformer Small"
                     if "noise" in old_model_name:
                         model_name += " N(0, " + str(old_model_name.split("_")[-2]) + ") Noise"
                     if "curriculum" in old_model_name:
                         model_name += " Curriculum"
                     if "batch" in old_model_name:
                         model_name += " Batch Size " + str(old_model_name.split("_")[-2])
+                    if "steps" in old_model_name:
+                        model_name += " " + str(old_model_name.split("_")[-2]) +  " Steps"
+                    if "prompt" in old_model_name:
+                        model_name += " Prompt " + str(old_model_name.split("_")[-2])
                     if rename_model is not None:
                         model_name = rename_model(model_name, r)
                 else:

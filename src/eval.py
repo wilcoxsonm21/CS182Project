@@ -13,7 +13,6 @@ import models
 from samplers import get_data_sampler, sample_transformation
 from tasks import get_task_sampler
 from models import get_relevant_baselines_for_degree
-import ipdb
 
 def get_model_from_run(run_path, step=-1, only_conf=False):
     config_path = os.path.join(run_path, "config.yaml")
@@ -39,29 +38,23 @@ def get_model_from_run(run_path, step=-1, only_conf=False):
 # Functions for evaluation
 
 
-def eval_batch(model, task_sampler, xs, include_noise=True, ground_truth_loss=False, smoothing=0):
-    task = task_sampler()
+def eval_batch(model, task, xs, include_noise=True, ground_truth_loss=False):
     if torch.cuda.is_available() and model.name.split("_")[0] in ["gpt2", "lstm"]:
         device = "cuda"
     else:
         device = "cpu"
-    perturbations = np.arange(-1 * smoothing, smoothing + 0.002, 0.002)
-    predictions = torch.zeros(len(perturbations), xs.shape[0], xs.shape[1])
-    if ground_truth_loss:
-        ys, noise = task.evaluate(xs, noise=include_noise, separate_noise=True)
-        ys = ys + noise
-    else:
-        ys = task.evaluate(xs, noise=include_noise, separate_noise=False)
-    for i in range(len(perturbations)):
-        cur_xs = xs + perturbations[i]
-        pred = model(cur_xs.to(device), ys.to(device)).detach()
-        predictions[i] = pred.cpu()
-    predictions = predictions.mean(dim=0)
-    if ground_truth_loss:
-        metrics = task.get_metric()(predictions, ys - noise)
-    else: 
-        metrics = task.get_metric()(predictions, ys)
-    return metrics
+    result_metrics = torch.zeros((xs.shape[0], xs.shape[1]))
+    for i in range(xs.shape[1]):
+        cur_xs = xs.detach().clone()  
+        cur_xs[:, i, :] = 2*torch.rand((xs.shape[0], xs.shape[2])) - 1
+        if ground_truth_loss:
+            ys, noise = task.evaluate(cur_xs, noise=include_noise, separate_noise=True)
+            ys = ys + noise
+        else:
+            ys = task.evaluate(cur_xs, noise=include_noise, separate_noise=False)
+        predictions = model(cur_xs.to(device), ys.to(device)).detach().cpu()
+        result_metrics[:, i] = task.get_metric()(predictions, ys)[:, i]
+    return result_metrics
 
 def get_imputed_ys(model, task, xs, ys, test_x, noise=False, smoothing = 0):
     if torch.cuda.is_available() and model.name.split("_")[0] in ["gpt2", "lstm"]:
@@ -177,7 +170,7 @@ def eval_model(
     n_dims,
     n_points,
     prompting_strategy,
-    num_eval_examples=1280,
+    num_eval_examples=64,
     batch_size=64,
     data_sampler_kwargs={},
     task_sampler_kwargs={},
@@ -193,22 +186,26 @@ def eval_model(
        - num_eval_examples: total number of examples to evaluate on
        - **sampler_kwargs: remaining arguments to pass directly to the sampler
     """
+    batch_size = 64
+    num_eval_examples = 1024
     assert num_eval_examples % batch_size == 0
-
     data_sampler = get_data_sampler(data_name, n_dims, **data_sampler_kwargs)
     task_sampler = get_task_sampler(
         task_name, n_dims, batch_size, **task_sampler_kwargs
     )
+    print("data sampler", data_sampler)
 
     all_metrics = []
-
-    generating_func = globals()[f"gen_{prompting_strategy}"]
+    print("num_eval_examples: ", num_eval_examples)
+    #generating_func = globals()[f"gen_{prompting_strategy}"]
     for i in range(num_eval_examples // batch_size):
-        xs, xs_p = generating_func(data_sampler, n_points, batch_size)
+        print("I VALUE IS: ", i)
+        task = task_sampler()
+        xs = data_sampler.sample_xs(n_points, batch_size, task)
         if not isinstance(model, models.TransformerModel):
-            metrics = eval_batch(model, task_sampler, xs, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=0)
+            metrics = eval_batch(model, task, xs, include_noise=include_noise, ground_truth_loss=ground_truth_loss)
         else:
-            metrics = eval_batch(model, task_sampler, xs, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing)
+            metrics = eval_batch(model, task, xs, include_noise=include_noise, ground_truth_loss=ground_truth_loss)
         all_metrics.append(metrics)
 
     metrics = torch.cat(all_metrics, dim=0)
@@ -236,6 +233,7 @@ def build_evals(conf):
     evaluation_kwargs = {}
 
     evaluation_kwargs["standard"] = {"prompting_strategy": "standard"}
+    evaluation_kwargs["standard"] = {"data_sampler_kwargs": conf.training.data_kwargs}
     if task_name != "linear_regression":
         if task_name in ["relu_2nn_regression"]:
             evaluation_kwargs["linear_regression"] = {"task_name": "linear_regression"}
@@ -285,7 +283,6 @@ def build_evals(conf):
         # allow kwargs to override base_kwargs values
         evaluation_kwargs[name] = base_kwargs.copy()
         evaluation_kwargs[name].update(kwargs)
-
     return evaluation_kwargs
 
 
@@ -330,7 +327,13 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
         for model in baselines:
             if model.name in metrics and not recompute:
                 continue
-            standard_args["task_sampler_kwargs"] = {"basis_dim": i,} # TODO: fix this]
+            if "prompting" in model.name:
+                standard_args["data_sampler_kwargs"] = {"run_dir": "../models/kernel_linear_regression/small-1-11-5M-steps-prompting"}
+                standard_args["data_name"] = "prompting"
+            else:
+                standard_args["data_sampler_kwargs"] = {}
+                standard_args["data_name"] = "gaussian"
+            standard_args["task_sampler_kwargs"] = {"basis_dim": i,} # TODO: fix this]                
             metrics[model.name] = eval_model(model, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing, **standard_args)
         all_metrics["degree-" + str(i)] = metrics
 
@@ -345,19 +348,19 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
 def get_run_metrics(
     run_path, run_path_2=None, run_path_3=None, step=-1, cache=True, skip_model_load=False, skip_baselines=False, include_noise=True, ground_truth_loss=False, smoothing=0):
     model, conf = get_model_from_run(run_path, 500000)
-    model.name += "_2048_batch"
+    model.name += "_prompting_5M_steps"
     transformer_model = model.cuda().eval()
     evaluation_kwargs = build_evals(conf)
-
+    print(evaluation_kwargs)
     transformer_models = [transformer_model]
     if run_path_2 is not None:
         model_2, conf_2 = get_model_from_run(run_path_2, step)
-        model_2.name += "_64_batch"
+        model_2.name += "_5M_steps"
         transformer_model_2 = model_2.cuda().eval()
         transformer_models.append(transformer_model_2)
     if run_path_3 is not None:
         model_3, conf_3 = get_model_from_run(run_path_3, step)
-        model_3.name += "_0.5_noise"
+        model_3.name += "_500k_steps"
         transformer_model_3 = model_3.cuda().eval()
         transformer_models.append(transformer_model_3)
 
@@ -385,6 +388,7 @@ def get_run_metrics(
 
 
 def conf_to_model_name(conf):
+    print(conf)
     if conf.model.family == "gpt2":
         return {
             (3, 2): "Transformer-xs",
