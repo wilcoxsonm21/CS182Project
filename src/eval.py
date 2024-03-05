@@ -14,6 +14,34 @@ from samplers import get_data_sampler, sample_transformation
 from tasks import get_task_sampler
 from models import get_relevant_baselines_for_degree
 
+def get_soft_model_from_run(run_path, step=-1, only_conf=False, model_class=models.TransformerModel, n_soft_prompts=8):
+    config_path = os.path.join(run_path, "config.yaml")
+    with open(config_path) as fp:  # we don't Quinfig it to avoid inherits
+        conf = Munch.fromDict(yaml.safe_load(fp))
+    if only_conf:
+        return None, conf
+
+    model = model_class(
+            n_dims=conf.model.n_dims,
+            n_positions=conf.model.n_positions,
+            n_embd=conf.model.n_embd,
+            n_layer=conf.model.n_layer,
+            n_head=conf.model.n_head,
+            n_soft_prompts=n_soft_prompts
+        )
+
+    if step == -1:
+        state_path = os.path.join(run_path, "state.pt")
+        state = torch.load(state_path)
+        model.load_state_dict(state["model_state_dict"], strict=False)
+    else:
+        model_path = os.path.join(run_path, f"model_{step}.pt")
+        state_dict = torch.load(model_path)
+        model.load_state_dict(state_dict, strict=False)
+
+    return model, conf
+
+
 def get_model_from_run(run_path, step=-1, only_conf=False):
     config_path = os.path.join(run_path, "config.yaml")
     with open(config_path) as fp:  # we don't Quinfig it to avoid inherits
