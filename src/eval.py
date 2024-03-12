@@ -32,6 +32,13 @@ def get_model_from_run(run_path, step=-1, only_conf=False):
         state_dict = torch.load(model_path)
         model.load_state_dict(state_dict)
 
+    print(conf.model)
+    if conf.model.family == "gpt2-soft-prompt":
+        print(torch.linalg.pinv(model.transformer_model._read_in.weight).shape)
+        closestHardPrompt = (model.prompt - model.transformer_model._read_in.bias) @ torch.linalg.pinv(model.transformer_model._read_in.weight.T)
+        print("PROMPT: ", closestHardPrompt)
+        print("Orthogonal component: ", torch.linalg.norm(model.prompt - model.transformer_model._read_in(closestHardPrompt)))
+        print("total norm: ", torch.linalg.norm(model.prompt))
     return model, conf
 
 
@@ -40,12 +47,16 @@ def get_model_from_run(run_path, step=-1, only_conf=False):
 
 def eval_batch(model, task_sampler, xs, include_noise=True, ground_truth_loss=False, smoothing=0):
     task = task_sampler()
-    if torch.cuda.is_available() and model.name.split("_")[0] in ["gpt2", "lstm"]:
+    print(model.name.split("_")[0])
+    if torch.cuda.is_available() and model.name.split("_")[0] in ["gpt2", "lstm", "gpt2-soft-prompt"]:
         device = "cuda"
     else:
         device = "cpu"
+    print(device)
+    assert include_noise == False
     perturbations = np.arange(-1 * smoothing, smoothing + 0.002, 0.002)
     predictions = torch.zeros(len(perturbations), xs.shape[0], xs.shape[1])
+    print(predictions.shape)
     if ground_truth_loss:
         ys, noise = task.evaluate(xs, noise=include_noise, separate_noise=True)
         ys = ys + noise
@@ -54,6 +65,7 @@ def eval_batch(model, task_sampler, xs, include_noise=True, ground_truth_loss=Fa
     for i in range(len(perturbations)):
         cur_xs = xs + perturbations[i]
         pred = model(cur_xs.to(device), ys.to(device)).detach()
+        print("PREDICTION SHPAPE: ", pred.shape)
         predictions[i] = pred.cpu()
     predictions = predictions.mean(dim=0)
     if ground_truth_loss:
@@ -63,7 +75,7 @@ def eval_batch(model, task_sampler, xs, include_noise=True, ground_truth_loss=Fa
     return metrics
 
 def get_imputed_ys(model, task, xs, ys, test_x, noise=False, smoothing = 0):
-    if torch.cuda.is_available() and model.name.split("_")[0] in ["gpt2", "lstm"]:
+    if torch.cuda.is_available() and model.name.split("_")[0] in ["gpt2", "lstm", "gpt2-soft-prompt"]:
         device = "cuda"
     else:
         device = "cpu"
@@ -343,15 +355,14 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
 
 def get_run_metrics(
     run_path, run_path_2=None, run_path_3=None, step=-1, cache=True, skip_model_load=False, skip_baselines=False, include_noise=True, ground_truth_loss=False, smoothing=0):
-    model, conf = get_model_from_run(run_path, 500000)
-    model.name += "_2048_batch"
+    model, conf = get_model_from_run(run_path, 100000)
+    model.name += "_soft_prompt"
     transformer_model = model.cuda().eval()
     evaluation_kwargs = build_evals(conf)
 
     transformer_models = [transformer_model]
     if run_path_2 is not None:
-        model_2, conf_2 = get_model_from_run(run_path_2, step)
-        model_2.name += "_64_batch"
+        model_2, conf_2 = get_model_from_run(run_path_2, 5000000)
         transformer_model_2 = model_2.cuda().eval()
         transformer_models.append(transformer_model_2)
     if run_path_3 is not None:

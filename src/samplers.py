@@ -13,7 +13,7 @@ class DataSampler:
 
 def get_data_sampler(data_name, n_dims, **kwargs):
     names_to_classes = {
-        "gaussian": UniformSampler, #,
+        "uniform": UniformSampler, #,
     }
     if data_name in names_to_classes:
         sampler_cls = names_to_classes[data_name]

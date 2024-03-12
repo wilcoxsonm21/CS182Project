@@ -106,6 +106,8 @@ def collect_results(run_dir, df, valid_row=None, rename_eval=None, rename_model=
                     model_name = r.model
                     if "noise" in old_model_name:
                         model_name += " N(0, " + str(old_model_name.split("_")[-2]) + ") Noise"
+                    if "soft" in old_model_name:
+                        model_name += " Soft Prompt"
                     if "curriculum" in old_model_name:
                         model_name += " Curriculum"
                     if "batch" in old_model_name:
