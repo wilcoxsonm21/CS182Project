@@ -1,10 +1,71 @@
 import math
 
 import torch
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 import numpy as np
 import numpy as np
 from models import *
+
+
+def generate_synth_data(
+    degree,
+    length=100,
+    samples=1000,
+    perturbation=0.1,
+    root_offsets=None,
+):
+    """
+    Generate interleaved sequence data for training a GPT model, where the model predicts
+    the next value in a sequence of [x1, f(x1), x2, f(x2), ..., xn] as [f(x1), x2, f(x2), ..., f(xn)],
+    for a given number of samples, each with a specified sequence length.
+
+    Parameters:
+    - degree (int): Degree of the polynomial used for data generation.
+    - length (int): Number of x values (and corresponding f(x) values) per sample.
+    - samples (int): Total number of samples to generate.
+    - perturbation (float): Perturbation applied to polynomial roots.
+    - root_offsets (list or np.ndarray, optional): Specific offsets to apply to Chebyshev roots.
+
+    Returns:
+    - torch.Tensor: Input sequences tensor of shape (samples, 2*length-1).
+    - torch.Tensor: Target sequences tensor of shape (samples, 2*length-1).
+    """
+    assert length % 2 == 0, "Length must be an even number."
+
+    inputs_list = []
+    targets_list = []
+
+    for _ in range(samples):
+        roots, scale = construct_polynomial(degree, perturbation, root_offsets)
+
+        # uniform random sample from [-1, 1]
+        x_values = np.random.uniform(-1, 1, (length // 2) + 1)
+        
+
+        # shuffle x, y pairs
+        indices = np.random.permutation((length // 2) + 1)
+        x_values = x_values[indices]
+        y_values = y_values[indices]
+
+        interleaved = np.empty(length + 1)
+        interleaved[0::2] = x_values  # x values at even indices
+        interleaved[1::2] = y_values[
+            :-1
+        ]  # f(x) values at odd indices, except for the last f(x)xs
+
+        inputs = interleaved[:-1]  # All except the last value
+        targets = interleaved[1:]  # All except the first value
+
+        inputs_list.append(inputs)
+        targets_list.append(targets)
+
+    # Convert lists to tensors with shape (samples, 2*length-1)
+    inputs_tensor = torch.tensor(inputs_list, dtype=torch.float32)
+    targets_tensor = torch.tensor(targets_list, dtype=torch.float32)
+
+    return inputs_tensor, targets_tensor
 
 def squared_error(ys_pred, ys):
     return (ys - ys_pred).square()
@@ -65,6 +126,7 @@ def get_task_sampler(
         "decision_tree": DecisionTree,
         "kernel_linear_regression": ChebyshevKernelLinearRegression,
         "chebyshev_kernel_linear_regression": ChebyshevKernelLinearRegression,
+        "polynomial_shared_roots": PolynomialSharedRoots,
     }
     if task_name in task_names_to_classes:
         task_cls = task_names_to_classes[task_name]
@@ -123,6 +185,7 @@ class ChebyshevKernelLinearRegression(Task):
         """scale: a constant by which to scale the randomly sampled weights."""
         super(ChebyshevKernelLinearRegression, self).__init__(n_dims, batch_size, pool_dict, seeds)
         self.basis_dim = basis_dim
+        1/0
         self.curriculum = curriculum
         self.highest_degree = highest_degree
         self.diff_poly_degree = different_degrees 
@@ -182,6 +245,90 @@ class ChebyshevKernelLinearRegression(Task):
 
     def get_training_loss(self):
         return mean_squared_error
+
+class PolynomialSharedRoots(Task):
+    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1, degree=1, curriculum=None):
+        """scale: a constant by which to scale the randomly sampled weights."""
+        super(PolynomialSharedRoots, self).__init__(n_dims, batch_size, pool_dict, seeds)
+        self.basis_dim = basis_dim
+        self.curriculum = curriculum
+        self.degree = degree
+        self.polys, self.scales = self.construct_polynomial(degree, batch_size=batch_size, num_to_not_perturb=2)
+
+
+    def construct_polynomial(
+            self,
+            degree,
+            perturbation=0.1,
+            batch_size=1, 
+            num_to_not_perturb=0,
+        ):
+        """
+        Constructs and scales a polynomial with roots adjusted relative to the positions of Chebyshev polynomial roots.
+        Raises an error if the shift is too large, causing roots to go outside [-1, 1] or cross over adjacent roots.
+
+        Parameters:
+        - degree (int): Degree of the polynomial.
+        - perturbation (float): Maximum perturbation applied if offsets are not specified.
+        - root_offsets (np.ndarray, optional): Array of offsets to apply to the Chebyshev roots.
+
+        Returns:
+        - roots (np.ndarray): Array of roots of the polynomial.
+        - scale (float): Scaling factor for the polynomial.
+        """
+        k = np.arange(1, degree + 1)
+        chebyshev_roots = np.cos((2 * k - 1) * np.pi / (2 * degree))
+        chebyshev_roots = np.sort(chebyshev_roots)
+        chebyshev_roots = chebyshev_roots[None, :]
+        chebyshev_roots = np.repeat(chebyshev_roots, batch_size, axis=0)
+        print(chebyshev_roots.shape)
+        roots_to_use = chebyshev_roots.copy()
+        roots_to_use[:, num_to_not_perturb:] = chebyshev_roots[:, num_to_not_perturb:] + np.random.uniform(
+            -perturbation, perturbation, (batch_size, degree - num_to_not_perturb)
+        )
+        #roots_to_use[0] = max(roots_to_use[0], -1)
+        #roots_to_use[-1] = min(roots_to_use[-1], 1)
+        #assert np.all(roots_to_use >= -1) and np.all(
+        #    roots_to_use <= 1
+        #), "Perturbation causes root to go outside the [-1, 1] range."
+
+        # Scale the polynomial to have a maximum absolute value of 1.
+        xs = np.linspace(-1, 1, 100)
+        polys = []
+        for i in range(batch_size):
+            poly = np.poly(roots_to_use[i])
+            polys.append(poly)
+        scales = np.zeros(batch_size)
+        for i in range(batch_size):
+            scales[i] = np.random.choice([1, -1]) / np.max(np.abs(np.polyval(polys[i], xs)))
+        return polys, scales
+    
+    def evaluate(self, xs_b, noise=False, separate_noise=False, noise_variance=0.2):   
+        ys_b = np.zeros((xs_b.shape[0], xs_b.shape[1]))
+        for i in range(xs_b.shape[0]): 
+            ys_b[i,:] = self.scales[i]*np.squeeze(np.polyval(self.polys[i], xs_b[i]),axis=1)
+        ys_b = torch.tensor(ys_b, dtype=torch.float32)
+        if noise and not separate_noise:
+            return ys_b + math.sqrt(noise_variance) * torch.randn_like(ys_b)
+        elif noise and separate_noise:
+            return ys_b, math.sqrt(noise_variance) * torch.randn_like(ys_b)
+        else:
+            if separate_noise:
+                return ys_b, torch.zeros_like(ys_b)
+            else:
+                return ys_b
+
+    @staticmethod
+    def generate_pool_dict(n_dims, num_tasks, **kwargs):  # ignore extra args
+        return {"w": torch.randn(num_tasks, n_dims, 1)}
+
+    @staticmethod
+    def get_metric():
+        return squared_error
+
+    def get_training_loss(self):
+        return mean_squared_error
+        
     
 class KernelLinearRegression(LinearRegression):
     def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1): #TODO only supports axis alligned 

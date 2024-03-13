@@ -32,7 +32,7 @@ def get_model_from_run(run_path, step=-1, only_conf=False):
         state_dict = torch.load(model_path)
         model.load_state_dict(state_dict)
 
-    print(conf.model)
+    #This code prints the component of the prompt within the range of read-in projection and the orthogonal component
     if conf.model.family == "gpt2-soft-prompt":
         print(torch.linalg.pinv(model.transformer_model._read_in.weight).shape)
         closestHardPrompt = (model.prompt - model.transformer_model._read_in.bias) @ torch.linalg.pinv(model.transformer_model._read_in.weight.T)
@@ -47,16 +47,13 @@ def get_model_from_run(run_path, step=-1, only_conf=False):
 
 def eval_batch(model, task_sampler, xs, include_noise=True, ground_truth_loss=False, smoothing=0):
     task = task_sampler()
-    print(model.name.split("_")[0])
     if torch.cuda.is_available() and model.name.split("_")[0] in ["gpt2", "lstm", "gpt2-soft-prompt"]:
         device = "cuda"
     else:
         device = "cpu"
-    print(device)
     assert include_noise == False
     perturbations = np.arange(-1 * smoothing, smoothing + 0.002, 0.002)
     predictions = torch.zeros(len(perturbations), xs.shape[0], xs.shape[1])
-    print(predictions.shape)
     if ground_truth_loss:
         ys, noise = task.evaluate(xs, noise=include_noise, separate_noise=True)
         ys = ys + noise
@@ -65,7 +62,6 @@ def eval_batch(model, task_sampler, xs, include_noise=True, ground_truth_loss=Fa
     for i in range(len(perturbations)):
         cur_xs = xs + perturbations[i]
         pred = model(cur_xs.to(device), ys.to(device)).detach()
-        print("PREDICTION SHPAPE: ", pred.shape)
         predictions[i] = pred.cpu()
     predictions = predictions.mean(dim=0)
     if ground_truth_loss:
@@ -332,7 +328,7 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
         print("no metrics found")
         all_metrics = {}
     standard_args = evaluation_kwargs["standard"]
-    for i in range(1, 12):
+    for i in range(4, 12):
         metrics = {}
         baselines =  get_relevant_baselines_for_degree(i)
         baselines += transformer_models
@@ -341,7 +337,7 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
         for model in baselines:
             if model.name in metrics and not recompute:
                 continue
-            standard_args["task_sampler_kwargs"] = {"basis_dim": i,} # TODO: fix this]
+            standard_args["task_sampler_kwargs"] = {"degree": i,} # TODO: fix this]
             metrics[model.name] = eval_model(model, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing, **standard_args)
         all_metrics["degree-" + str(i)] = metrics
 
@@ -355,7 +351,7 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
 
 def get_run_metrics(
     run_path, run_path_2=None, run_path_3=None, step=-1, cache=True, skip_model_load=False, skip_baselines=False, include_noise=True, ground_truth_loss=False, smoothing=0):
-    model, conf = get_model_from_run(run_path, 100000)
+    model, conf = get_model_from_run(run_path, 400000)
     model.name += "_soft_prompt"
     transformer_model = model.cuda().eval()
     evaluation_kwargs = build_evals(conf)

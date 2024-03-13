@@ -1,5 +1,5 @@
 wandb:
     project: in-context-training
-    entity: cs182-poly-reg
+    entity: mwilcoxson
     notes:
     log_every_steps: 100

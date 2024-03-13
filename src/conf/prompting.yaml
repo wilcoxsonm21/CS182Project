@@ -9,9 +9,9 @@ model:
     pretrained_model_dir: ../models/kernel_linear_regression/small-1-11-5M-steps
 
 training:
-    task: kernel_linear_regression
+    task: polynomial_shared_roots
     data: uniform
-    task_kwargs: {"basis_dim": 3, "different_degrees": False, "lowest_degree": 3, "highest_degree": 3}
+    task_kwargs: {"basis_dim": 5, "degree": 5}
 
     batch_size: 64
     learning_rate: 0.00005

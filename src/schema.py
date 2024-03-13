@@ -44,6 +44,7 @@ TASK_LIST = [
     "linear_classification",
     "relu_2nn_regression",
     "decision_tree",
+    "polynomial_shared_roots",
 ]
 
 training_schema = {
