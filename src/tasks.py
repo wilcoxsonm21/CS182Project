@@ -183,9 +183,9 @@ class LinearRegression(Task):
 class ChebyshevKernelLinearRegression(Task):
     def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1, different_degrees=False, lowest_degree=1, highest_degree=1, curriculum=None):
         """scale: a constant by which to scale the randomly sampled weights."""
-        super(ChebyshevKernelLinearRegression, self).__init__(n_dims, batch_size, pool_dict, seeds)
-        self.basis_dim = basis_dim
-        1/0
+        assert basis_dim >= highest_degree, "Basis dimension must be greater than or equal to highest degree"
+        super(ChebyshevKernelLinearRegression, self).__init__(n_dims, batch_size, pool_dict, seeds) 
+        self.basis_dim = basis_dim 
         self.curriculum = curriculum
         self.highest_degree = highest_degree
         self.diff_poly_degree = different_degrees 
@@ -206,7 +206,7 @@ class ChebyshevKernelLinearRegression(Task):
         ], dtype=torch.float)
         
         self.chebyshev_coeffs = self.chebyshev_coeffs[:self.basis_dim + 1, :self.basis_dim + 1]
-        combinations = torch.randn(size=(self.b_size, self.basis_dim + 1))
+        combinations = torch.randn(size=(self.b_size, self.basis_dim + 1)) 
         if self.diff_poly_degree:
             mask = torch.ones(combinations.shape[0], combinations.shape[-1], dtype=torch.float32)
             if curriculum:
@@ -216,7 +216,7 @@ class ChebyshevKernelLinearRegression(Task):
             mask[torch.arange(0, combinations.shape[-1], dtype=torch.float32).repeat(combinations.shape[0],1) >= indices] = 0
             combinations = torch.mul(combinations, mask)
             self.mask = mask
-        self.w_b = (combinations @ self.chebyshev_coeffs).unsqueeze(2)
+        self.w_b = (combinations @ self.chebyshev_coeffs).unsqueeze(2) # note if diff poly degree is false, then only generates basis dim degree polynomials 
 
     def evaluate(self, xs_b, noise=False, separate_noise=False, noise_variance=0.2):
         expanded_basis = torch.zeros(*xs_b.shape[:-1], xs_b.shape[-1]*(self.basis_dim + 1))

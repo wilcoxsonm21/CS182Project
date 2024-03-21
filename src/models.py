@@ -45,6 +45,9 @@ def build_model(conf):
     elif conf.family == "gpt2-soft-prompt":
         transformer_model, _ = get_model_from_run(conf.pretrained_model_dir)
         model = SoftPromptTransformerModel(transformer_model, conf)
+    elif conf.family == "gpt2-hard-prompt":
+        transformer_model, _ = get_model_from_run(conf.pretrained_model_dir)
+        model = HardPromptTransformerModel(transformer_model, conf)
     else:
         raise NotImplementedError
 
@@ -165,10 +168,8 @@ class TransformerModel(nn.Module):
                 raise ValueError("inds contain indices where xs and ys are not defined")
         zs = self._combine(xs, ys)
         embeds = self._read_in(zs)
-        print("ZS Shape: ", embeds.shape)
         output = self._backbone(inputs_embeds=embeds).last_hidden_state
         prediction = self._read_out(output)
-        print("INDS: ", inds)
         return prediction[:, ::2, 0][:, inds]  # predict only on xs
 
 class SoftPromptTransformerModel(nn.Module):
@@ -201,6 +202,38 @@ class SoftPromptTransformerModel(nn.Module):
         output = self.transformer_model._backbone(inputs_embeds=embeds).last_hidden_state
         prediction = self.transformer_model._read_out(output)
         return prediction[:, self.prompt_dim*2::2, 0][:, inds]  # predict only on xs, and only after the prompt
+    
+
+class HardPromptTransformerModel(nn.Module):
+    def __init__(self, transformer_model, conf):
+        super(HardPromptTransformerModel, self).__init__()
+        self.transformer_model = transformer_model
+        self.prompt_dim = conf.prompt_dim
+        self.n_positions = conf.n_positions
+        self.n_dims = conf.n_dims
+        self.n_embd = self.transformer_model.n_embd
+        self.n_layer = self.transformer_model.n_layer
+        self.n_head = self.transformer_model.n_head
+        for param in self.transformer_model.parameters():
+            param.requires_grad = False
+        start_inputs = torch.rand((1,self.prompt_dim*2,1))
+        self.prompt = nn.Parameter(start_inputs) # batch size, prompt dim * 2 (x and y), 1, initialize with a possible actual input (this is a hard prompt now)
+        self.name = f"gpt2-hard-prompt_embd={self.n_embd}_layer={self.n_layer}_head={self.n_head}"
+    
+    def forward(self, xs, ys, inds=None):
+        if inds is None:
+            inds = torch.arange(ys.shape[1])
+        else:
+            inds = torch.tensor(inds)
+            if max(inds) >= ys.shape[1] or min(inds) < 0:
+                raise ValueError("inds contain indices where xs and ys are not defined")
+        zs = self.transformer_model._combine(xs, ys)
+        zs = torch.cat((self.prompt.repeat(xs.shape[0], 1, 1), zs), dim=1)
+        embeds = self.transformer_model._read_in(zs)
+        output = self.transformer_model._backbone(inputs_embeds=embeds).last_hidden_state
+        prediction = self.transformer_model._read_out(output)
+        return prediction[:, self.prompt_dim*2::2, 0][:, inds]  # predict only on xs, and only after the prompt
+
 
 class NNModel:
     def __init__(self, n_neighbors, weights="uniform"):
