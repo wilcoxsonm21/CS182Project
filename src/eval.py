@@ -39,6 +39,11 @@ def get_model_from_run(run_path, step=-1, only_conf=False):
         print("PROMPT: ", closestHardPrompt)
         print("Orthogonal component: ", torch.linalg.norm(model.prompt - model.transformer_model._read_in(closestHardPrompt)))
         print("total norm: ", torch.linalg.norm(model.prompt))
+    
+    elif conf.model.family == "gpt2-hard-prompt":
+        print("PROMPT: ", model.prompt)
+        print("total norm: ", torch.linalg.norm(model.prompt))
+
     return model, conf
 
 
@@ -47,7 +52,7 @@ def get_model_from_run(run_path, step=-1, only_conf=False):
 
 def eval_batch(model, task_sampler, xs, include_noise=True, ground_truth_loss=False, smoothing=0):
     task = task_sampler()
-    if torch.cuda.is_available() and model.name.split("_")[0] in ["gpt2", "lstm", "gpt2-soft-prompt"]:
+    if torch.cuda.is_available() and model.name.split("_")[0] in ["gpt2", "lstm", "gpt2-soft-prompt", "gpt2-hard-prompt"]:
         device = "cuda"
     else:
         device = "cpu"
@@ -71,7 +76,7 @@ def eval_batch(model, task_sampler, xs, include_noise=True, ground_truth_loss=Fa
     return metrics
 
 def get_imputed_ys(model, task, xs, ys, test_x, noise=False, smoothing = 0):
-    if torch.cuda.is_available() and model.name.split("_")[0] in ["gpt2", "lstm", "gpt2-soft-prompt"]:
+    if torch.cuda.is_available() and model.name.split("_")[0] in ["gpt2", "lstm", "gpt2-soft-prompt",  "gpt2-hard-prompt"]:
         device = "cuda"
     else:
         device = "cpu"
