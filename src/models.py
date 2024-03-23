@@ -10,7 +10,8 @@ import xgboost as xgb
 import math
 import yaml
 from munch import Munch
-import os 
+import os
+from peft import LoraConfig, get_peft_model
 
 from base_models import NeuralNetwork, ParallelNetworks
 
@@ -170,6 +171,34 @@ class TransformerModel(nn.Module):
         prediction = self._read_out(output)
         print("INDS: ", inds)
         return prediction[:, ::2, 0][:, inds]  # predict only on xs
+    
+
+class LoraTransformerModel(TransformerModel):
+
+    def __init__(self, n_dims, n_positions, n_embd=128, n_layer=12, n_head=4,
+                 lora_config = LoraConfig(
+                                    r=16,
+                                    lora_alpha=16,
+                                    target_modules=["attn.c_attn", "mlp.c_fc", "mlp.c_proj"],
+                                    lora_dropout=0.0,
+                                    bias="none")):
+        
+        super(LoraTransformerModel, self).__init__(n_dims, n_positions, n_embd, n_layer, n_head)
+
+        # Freeze original model
+        for param in self._backbone.parameters():
+            param.requires_grad = False
+
+        self.lora_config = lora_config
+        self._backbone = get_peft_model(self._backbone, self.lora_config)
+        self.name = f"gpt2-lora_embd={n_embd}_layer={n_layer}_head={n_head}"
+
+    def get_trainable_params(self):
+        return sum(p.numel() for p in self._backbone.parameters() if p.requires_grad)
+    
+    def get_non_trainable_params(self):
+        return sum(p.numel() for p in self._backbone.parameters() if not p.requires_grad)
+    
 
 class SoftPromptTransformerModel(nn.Module):
     def __init__(self, transformer_model, conf):
