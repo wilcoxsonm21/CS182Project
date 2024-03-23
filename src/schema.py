@@ -9,6 +9,7 @@ from quinine import (
     required,
     allowed,
     nullable,
+    tlist
 )
 from funcy import merge
 
@@ -22,6 +23,14 @@ model_schema = {
     "n_head": merge(tinteger, required),
     "prompt_dim": merge(tinteger, nullable, default(None)),
     "pretrained_model_dir": merge(tstring, nullable, default(None)),
+    "lora_config":
+        merge(stdict({
+            "r": merge(tinteger, nullable),
+            "lora_alpha": merge(tinteger, nullable),
+            "bias": merge(tstring, nullable),
+            "lora_dropout": merge(tfloat, nullable),
+            "target_modules": merge(tlist, nullable),
+        }), nullable),
 }
 
 curriculum_base_schema = {

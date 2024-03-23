@@ -281,7 +281,7 @@ class PolynomialSharedRoots(Task):
         chebyshev_roots = np.sort(chebyshev_roots)
         chebyshev_roots = chebyshev_roots[None, :]
         chebyshev_roots = np.repeat(chebyshev_roots, batch_size, axis=0)
-        print(chebyshev_roots.shape)
+        #print(chebyshev_roots.shape)
         roots_to_use = chebyshev_roots.copy()
         roots_to_use[:, num_to_not_perturb:] = chebyshev_roots[:, num_to_not_perturb:] + np.random.uniform(
             -perturbation, perturbation, (batch_size, degree - num_to_not_perturb)
