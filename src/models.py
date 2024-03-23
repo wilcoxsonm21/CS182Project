@@ -49,6 +49,9 @@ def build_model(conf):
     elif conf.family == "gpt2-hard-prompt":
         transformer_model, _ = get_model_from_run(conf.pretrained_model_dir)
         model = HardPromptTransformerModel(transformer_model, conf)
+    elif conf.family == "gpt2-lora":
+        transformer_model, _ = get_model_from_run(conf.pretrained_model_dir)
+        model = LoraTransformerModel(transformer_model, lora_config=LoraConfig(**conf.lora_config))
     else:
         raise NotImplementedError
 
@@ -174,31 +177,28 @@ class TransformerModel(nn.Module):
         return prediction[:, ::2, 0][:, inds]  # predict only on xs
     
 
-class LoraTransformerModel(TransformerModel):
+class LoraTransformerModel(nn.Module):
 
-    def __init__(self, n_dims, n_positions, n_embd=128, n_layer=12, n_head=4,
-                 lora_config = LoraConfig(
-                                    r=16,
-                                    lora_alpha=16,
-                                    target_modules=["attn.c_attn", "mlp.c_fc", "mlp.c_proj"],
-                                    lora_dropout=0.0,
-                                    bias="none")):
+    def __init__(self, transformer_model: TransformerModel, lora_config: LoraConfig):
         
-        super(LoraTransformerModel, self).__init__(n_dims, n_positions, n_embd, n_layer, n_head)
+        self.transformer_model = transformer_model
 
         # Freeze original model
-        for param in self._backbone.parameters():
+        for param in self.transformer_model._backbone.parameters():
             param.requires_grad = False
 
         self.lora_config = lora_config
-        self._backbone = get_peft_model(self._backbone, self.lora_config)
-        self.name = f"gpt2-lora_embd={n_embd}_layer={n_layer}_head={n_head}"
+        self.transformer_model._backbone = get_peft_model(self.transformer_model._backbone, self.lora_config)
+        self.name = f"gpt2-lora_embd={self.transformer_model.n_embd}_layer={self.transformer_model.n_layer}_head={self.transformer_model.n_head}"
 
     def get_trainable_params(self):
-        return sum(p.numel() for p in self._backbone.parameters() if p.requires_grad)
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
     
     def get_non_trainable_params(self):
-        return sum(p.numel() for p in self._backbone.parameters() if not p.requires_grad)
+        return sum(p.numel() for p in self.parameters() if not p.requires_grad)
+    
+    def forward(self, xs, ys, inds=None):
+        return self.transformer_model(xs, ys, inds)
     
 
 class SoftPromptTransformerModel(nn.Module):

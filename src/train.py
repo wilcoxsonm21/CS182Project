@@ -165,7 +165,7 @@ def main(args):
 if __name__ == "__main__":
     parser = QuinineArgumentParser(schema=schema)
     args = parser.parse_quinfig()
-    assert args.model.family in ["gpt2", "lstm", "gpt2-soft-prompt", "gpt2-hard-prompt"]
+    assert args.model.family in ["gpt2", "lstm", "gpt2-soft-prompt", "gpt2-hard-prompt", "gpt2-lora"]
     print(f"Running with: {args}")
 
     if not args.test_run:
