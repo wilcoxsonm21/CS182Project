@@ -14,22 +14,22 @@ from samplers import get_data_sampler, sample_transformation
 from tasks import get_task_sampler
 from models import get_relevant_baselines_for_degree
 
-def get_model_from_run(run_path, step=-1, only_conf=False):
+def get_model_from_run(run_path, step=-1, only_conf=False, device="cuda"):
     config_path = os.path.join(run_path, "config.yaml")
     with open(config_path) as fp:  # we don't Quinfig it to avoid inherits
         conf = Munch.fromDict(yaml.safe_load(fp))
     if only_conf:
         return None, conf
 
-    model = models.build_model(conf.model)
+    model = models.build_model(conf.model, device=device)
 
     if step == -1:
         state_path = os.path.join(run_path, "state.pt")
-        state = torch.load(state_path)
+        state = torch.load(state_path, map_location=torch.device(device))
         model.load_state_dict(state["model_state_dict"])
     else:
         model_path = os.path.join(run_path, f"model_{step}.pt")
-        state_dict = torch.load(model_path)
+        state_dict = torch.load(model_path, map_location=torch.device(device))
         model.load_state_dict(state_dict)
 
     #This code prints the component of the prompt within the range of read-in projection and the orthogonal component
@@ -50,12 +50,8 @@ def get_model_from_run(run_path, step=-1, only_conf=False):
 # Functions for evaluation
 
 
-def eval_batch(model, task_sampler, xs, include_noise=True, ground_truth_loss=False, smoothing=0):
+def eval_batch(model, task_sampler, xs, include_noise=True, ground_truth_loss=False, smoothing=0, device="cuda"):
     task = task_sampler()
-    if torch.cuda.is_available() and model.name.split("_")[0] in ["gpt2", "lstm", "gpt2-soft-prompt", "gpt2-hard-prompt"]:
-        device = "cuda"
-    else:
-        device = "cpu"
     assert include_noise == False
     perturbations = np.arange(-1 * smoothing, smoothing + 0.002, 0.002)
     predictions = torch.zeros(len(perturbations), xs.shape[0], xs.shape[1])
@@ -196,6 +192,7 @@ def eval_model(
     include_noise=True,
     ground_truth_loss=False,
     smoothing=0,
+    device="cuda"
 ):
     """
     Evaluate a model on a task with a variety of strategies.
@@ -218,9 +215,9 @@ def eval_model(
     for i in range(num_eval_examples // batch_size):
         xs, xs_p = generating_func(data_sampler, n_points, batch_size)
         if not isinstance(model, models.TransformerModel):
-            metrics = eval_batch(model, task_sampler, xs, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=0)
+            metrics = eval_batch(model, task_sampler, xs, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=0, device=device)
         else:
-            metrics = eval_batch(model, task_sampler, xs, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing)
+            metrics = eval_batch(model, task_sampler, xs, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing, device=device)
         all_metrics.append(metrics)
 
     metrics = torch.cat(all_metrics, dim=0)
@@ -325,7 +322,7 @@ def compute_evals(all_models, evaluation_kwargs, save_path=None, recompute=False
 
     return all_metrics
 
-def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, recompute=False, include_noise=True, ground_truth_loss=False, smoothing=0):
+def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, recompute=False, include_noise=True, ground_truth_loss=False, smoothing=0, device="cuda"):
     try:
         with open(save_path) as fp:
             all_metrics = json.load(fp)
@@ -343,7 +340,7 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
             if model.name in metrics and not recompute:
                 continue
             standard_args["task_sampler_kwargs"] = {"degree": i,} # TODO: fix this]
-            metrics[model.name] = eval_model(model, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing, **standard_args)
+            metrics[model.name] = eval_model(model, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing, device=device, **standard_args)
         all_metrics["degree-" + str(i)] = metrics
 
     if save_path is not None:
@@ -355,21 +352,21 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
 
 
 def get_run_metrics(
-    run_path, run_path_2=None, run_path_3=None, step=-1, cache=True, skip_model_load=False, skip_baselines=False, include_noise=True, ground_truth_loss=False, smoothing=0):
-    model, conf = get_model_from_run(run_path, 400000)
+    run_path, step, run_path_2=None, run_path_3=None, cache=True, skip_model_load=False, skip_baselines=False, include_noise=True, ground_truth_loss=False, smoothing=0, device="cuda"):
+    model, conf = get_model_from_run(run_path, step, device=device)
     model.name += "_soft_prompt"
-    transformer_model = model.cuda().eval()
+    transformer_model = model.eval()
     evaluation_kwargs = build_evals(conf)
 
     transformer_models = [transformer_model]
     if run_path_2 is not None:
-        model_2, conf_2 = get_model_from_run(run_path_2, 5000000)
-        transformer_model_2 = model_2.cuda().eval()
+        model_2, conf_2 = get_model_from_run(run_path_2, step, device=device)
+        transformer_model_2 = model_2.eval()
         transformer_models.append(transformer_model_2)
     if run_path_3 is not None:
-        model_3, conf_3 = get_model_from_run(run_path_3, step)
+        model_3, conf_3 = get_model_from_run(run_path_3, step, device=device)
         model_3.name += "_0.5_noise"
-        transformer_model_3 = model_3.cuda().eval()
+        transformer_model_3 = model_3.eval()
         transformer_models.append(transformer_model_3)
 
     if not cache:
@@ -389,7 +386,7 @@ def get_run_metrics(
         if checkpoint_created > cache_created:
             recompute = True
 
-    all_metrics = compute_evals_basis(transformer_models, evaluation_kwargs, save_path, recompute, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing)
+    all_metrics = compute_evals_basis(transformer_models, evaluation_kwargs, save_path, recompute, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing, device=device)
     print(all_metrics)
     return all_metrics
 

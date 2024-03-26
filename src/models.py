@@ -15,7 +15,7 @@ from peft import LoraConfig, get_peft_model
 
 from base_models import NeuralNetwork, ParallelNetworks
 
-def get_model_from_run(run_path, step=-1, only_conf=False):
+def get_model_from_run(run_path, step=-1, only_conf=False, device="cuda"):
     config_path = os.path.join(run_path, "config.yaml")
     with open(config_path) as fp:  # we don't Quinfig it to avoid inherits
         conf = Munch.fromDict(yaml.safe_load(fp))
@@ -26,15 +26,15 @@ def get_model_from_run(run_path, step=-1, only_conf=False):
 
     if step == -1:
         state_path = os.path.join(run_path, "state.pt")
-        state = torch.load(state_path)
+        state = torch.load(state_path, torch.device(device))
         model.load_state_dict(state["model_state_dict"])
     else:
         model_path = os.path.join(run_path, f"model_{step}.pt")
-        state_dict = torch.load(model_path)
+        state_dict = torch.load(model_path, torch.device(device))
         model.load_state_dict(state_dict)
     return model, conf
 
-def build_model(conf):
+def build_model(conf, device="cuda"):
     if conf.family == "gpt2":
         model = TransformerModel(
             n_dims=conf.n_dims,
@@ -44,13 +44,13 @@ def build_model(conf):
             n_head=conf.n_head,
         )
     elif conf.family == "gpt2-soft-prompt":
-        transformer_model, _ = get_model_from_run(conf.pretrained_model_dir)
+        transformer_model, _ = get_model_from_run(conf.pretrained_model_dir, device=device)
         model = SoftPromptTransformerModel(transformer_model, conf)
     elif conf.family == "gpt2-hard-prompt":
-        transformer_model, _ = get_model_from_run(conf.pretrained_model_dir)
+        transformer_model, _ = get_model_from_run(conf.pretrained_model_dir, device=device)
         model = HardPromptTransformerModel(transformer_model, conf)
     elif conf.family == "gpt2-lora":
-        transformer_model, _ = get_model_from_run(conf.pretrained_model_dir)
+        transformer_model, _ = get_model_from_run(conf.pretrained_model_dir, device=device)
         model = LoraTransformerModel(transformer_model, lora_config=LoraConfig(**conf.lora_config))
     else:
         raise NotImplementedError
