@@ -57,7 +57,7 @@ def get_model_names_for_degree(degree):
     if degree > 1:
         names.append("Chebyshev Ridge 1")
 
-def basic_plot_simple(metrics, trivial=1.0, yhigh_lim=float('inf')):
+def basic_plot(metrics, trivial=1.0, yhigh_lim=float('inf')):
     fig, ax = plt.subplots(1, 1)
 
     color = 0
@@ -74,32 +74,6 @@ def basic_plot_simple(metrics, trivial=1.0, yhigh_lim=float('inf')):
     ax.set_ylabel("squared error")
     #ax.set_xlim(-1, len(low) + 0.1)
     ax.set_ylim(-0.05, min(max_val*1.01, yhigh_lim))
-
-    legend = ax.legend(loc="upper left", bbox_to_anchor=(1, 1))
-    fig.set_size_inches(4, 3)
-    for line in legend.get_lines():
-        line.set_linewidth(3)
-
-    return fig, ax
-
-def basic_plot(metrics, models=None, trivial=1.0, ylim=5):
-    fig, ax = plt.subplots(1, 1)
-
-    if models is not None:
-        metrics = {k: metrics[k] for k in models}
-
-    color = 0
-    ax.axhline(trivial, ls="--", color="gray")
-    for name, vs in metrics.items():
-        ax.plot(vs["mean"], "-", label=name, color=palette[color % 10], lw=2)
-        low = vs["bootstrap_low"]
-        high = vs["bootstrap_high"]
-        ax.fill_between(range(len(low)), low, high, alpha=0.3)
-        color += 1
-    ax.set_xlabel("in-context examples")
-    ax.set_ylabel("squared error")
-    #ax.set_xlim(-1, len(low) + 0.1)
-    ax.set_ylim(-0.05, ylim)
 
     legend = ax.legend(loc="upper left", bbox_to_anchor=(1, 1))
     fig.set_size_inches(4, 3)
