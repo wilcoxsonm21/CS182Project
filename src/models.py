@@ -180,8 +180,12 @@ class TransformerModel(nn.Module):
 class LoraTransformerModel(nn.Module):
 
     def __init__(self, transformer_model: TransformerModel, lora_config: LoraConfig):
+        super(LoraTransformerModel, self).__init__()
         
         self.transformer_model = transformer_model
+
+        self.n_positions, self.n_dims, self.n_embd = transformer_model.n_positions, transformer_model.n_dims, transformer_model.n_embd 
+        self.n_head, self.n_layer, self.prompt_dim = transformer_model.n_head, transformer_model.n_layer, transformer_model.prompt_dim
 
         # Freeze original model
         for param in self.transformer_model._backbone.parameters():
@@ -196,6 +200,10 @@ class LoraTransformerModel(nn.Module):
     
     def get_non_trainable_params(self):
         return sum(p.numel() for p in self.parameters() if not p.requires_grad)
+    
+    @staticmethod
+    def _combine(xs_b, ys_b):
+        return TransformerModel._combine(xs_b, ys_b)
     
     def forward(self, xs, ys, inds=None):
         return self.transformer_model(xs, ys, inds)
@@ -322,7 +330,6 @@ class LeastSquaresModel:
                 raise ValueError("inds contain indices where xs and ys are not defined")
 
         preds = []
-        print(xs.shape)
 
         for i in inds:
             if i == 0:
@@ -428,7 +435,7 @@ class ChebyshevKernelLeastSquaresModelWithRidge(LeastSquaresModel):
         self.name = f"ridge_chebyshev_{basis_dim}_driver={driver}"
         self.random = random
         self.ridge = ridge
-        print(self.ridge)
+        #print(self.ridge)
     
     def __call__(self, xs, ys, inds=None):
         expanded_basis = torch.zeros(*xs.shape[:-1], xs.shape[-1]*(self.basis_dim + 1))
