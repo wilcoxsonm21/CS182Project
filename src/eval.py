@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+from typing import List, Tuple
 
 from munch import Munch
 import numpy as np
@@ -349,6 +350,50 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
 
     return all_metrics
 
+
+def get_config(config_path):
+
+    with open(config_path) as fp:  # we don't Quinfig it to avoid inherits
+        return Munch.fromDict(yaml.safe_load(fp))
+
+def get_model_from_run_simple(run_path, step, device="cuda") -> torch.nn.Module:
+
+    config_path = os.path.join(run_path, "config.yaml")
+    print(config_path)
+    conf = get_config(config_path)
+
+    model = models.build_model(conf.model, device=device)
+
+    if step == -1:
+        state_path = os.path.join(run_path, "state.pt")
+        state = torch.load(state_path, map_location=torch.device(device))
+        model.load_state_dict(state["model_state_dict"])
+    else:
+        model_path = os.path.join(run_path, f"model_{step}.pt")
+        state_dict = torch.load(model_path, map_location=torch.device(device))
+        model.load_state_dict(state_dict)
+
+    return model, conf
+
+
+def get_run_metrics_simple(run_path: str, step: int, device: str = "cuda", include_noise=True, ground_truth_loss=False, smoothing=0, alternative_train_conf_path=None):
+
+    # Get model
+    model, config = get_model_from_run_simple(run_path, step, device=device)
+    model = model.eval()
+
+    if alternative_train_conf_path is not None:
+        config.training = get_config(alternative_train_conf_path).training
+
+    # Set configuration    
+    evaluation_kwargs = build_evals(config)
+    standard_args = evaluation_kwargs["standard"]
+    standard_args["task_sampler_kwargs"] = config.training.task_kwargs
+
+    # Loop wanted degrees
+    metrics = eval_model(model, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing, device=device, **standard_args)
+
+    return metrics
 
 
 def get_run_metrics(
