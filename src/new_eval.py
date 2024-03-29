@@ -2,6 +2,7 @@ import torch
 from munch import Munch
 from pathlib import Path
 import yaml
+from typing import NamedTuple
 
 import models
 from eval import eval_model, build_evals
@@ -11,6 +12,13 @@ import seaborn as sns
 
 sns.set_theme("notebook", "darkgrid")
 palette = sns.color_palette("colorblind")
+
+
+class LoadInfo(NamedTuple):
+    path: Path
+    step: int
+    alternative_train_conf_path: Path = None
+    name_addon: str = ""
 
 def get_config(config_path: Path):
 
