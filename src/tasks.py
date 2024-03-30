@@ -134,6 +134,7 @@ def get_task_sampler(
             if pool_dict is not None:
                 raise ValueError("Either pool_dict or num_tasks should be None.")
             pool_dict = task_cls.generate_pool_dict(n_dims, num_tasks, **kwargs)
+        #print(kwargs, pool_dict)
         return lambda **args: task_cls(n_dims, batch_size, pool_dict, **args, **kwargs)
     else:
         print("Unknown task")
@@ -181,7 +182,7 @@ class LinearRegression(Task):
         return mean_squared_error
 
 class ChebyshevKernelLinearRegression(Task):
-    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1, different_degrees=False, lowest_degree=1, highest_degree=1, curriculum=None):
+    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1, different_degrees=False, lowest_degree=1, highest_degree=1, curriculum=None, degree=None):
         """scale: a constant by which to scale the randomly sampled weights."""
         assert basis_dim >= highest_degree, "Basis dimension must be greater than or equal to highest degree"
         super(ChebyshevKernelLinearRegression, self).__init__(n_dims, batch_size, pool_dict, seeds) 
