@@ -15,7 +15,7 @@ from peft import LoraConfig, get_peft_model
 
 from base_models import NeuralNetwork, ParallelNetworks
 
-def get_model_from_run(run_path, step=-1, only_conf=False):
+def get_model_from_run(run_path, step=-1, only_conf=False, device="cuda"):
     config_path = os.path.join(run_path, "config.yaml")
     with open(config_path) as fp:  # we don't Quinfig it to avoid inherits
         conf = Munch.fromDict(yaml.safe_load(fp))
@@ -26,15 +26,15 @@ def get_model_from_run(run_path, step=-1, only_conf=False):
 
     if step == -1:
         state_path = os.path.join(run_path, "state.pt")
-        state = torch.load(state_path)
+        state = torch.load(state_path, torch.device(device))
         model.load_state_dict(state["model_state_dict"])
     else:
         model_path = os.path.join(run_path, f"model_{step}.pt")
-        state_dict = torch.load(model_path)
+        state_dict = torch.load(model_path, torch.device(device))
         model.load_state_dict(state_dict)
     return model, conf
 
-def build_model(conf):
+def build_model(conf, device="cuda"):
     if conf.family == "gpt2":
         model = TransformerModel(
             n_dims=conf.n_dims,
@@ -44,13 +44,13 @@ def build_model(conf):
             n_head=conf.n_head,
         )
     elif conf.family == "gpt2-soft-prompt":
-        transformer_model, _ = get_model_from_run(conf.pretrained_model_dir)
+        transformer_model, _ = get_model_from_run(conf.pretrained_model_dir, device=device)
         model = SoftPromptTransformerModel(transformer_model, conf)
     elif conf.family == "gpt2-hard-prompt":
-        transformer_model, _ = get_model_from_run(conf.pretrained_model_dir)
+        transformer_model, _ = get_model_from_run(conf.pretrained_model_dir, device=device)
         model = HardPromptTransformerModel(transformer_model, conf)
     elif conf.family == "gpt2-lora":
-        transformer_model, _ = get_model_from_run(conf.pretrained_model_dir)
+        transformer_model, _ = get_model_from_run(conf.pretrained_model_dir, device=device)
         model = LoraTransformerModel(transformer_model, lora_config=LoraConfig(**conf.lora_config))
         print("Non-tranaible parameters:", model.get_non_trainable_params())
         print("Trainable parameters:", model.get_trainable_params())
@@ -191,8 +191,8 @@ class LoraTransformerModel(nn.Module):
         self.n_head, self.n_layer, self.prompt_dim = transformer_model.n_head, transformer_model.n_layer, transformer_model.prompt_dim
 
         # Freeze original model
-        for param in self.transformer_model._backbone.parameters():
-            param.requires_grad = False
+        for param in self.parameters():
+            param.requires_grad = False        
 
         self.lora_config = lora_config
         self.transformer_model._backbone = get_peft_model(self.transformer_model._backbone, self.lora_config)

@@ -208,6 +208,7 @@ class ChebyshevKernelLinearRegression(Task):
         
         self.chebyshev_coeffs = self.chebyshev_coeffs[:self.basis_dim + 1, :self.basis_dim + 1]
         combinations = torch.randn(size=(self.b_size, self.basis_dim + 1)) 
+        #print("Basis dim: ", self.basis_dim, "Highest degree: ", self.highest_degree, "Lowest degree: ", self.lowest_degree, "Different degrees: ", self.diff_poly_degree)
         if self.diff_poly_degree:
             mask = torch.ones(combinations.shape[0], combinations.shape[-1], dtype=torch.float32)
             if curriculum:
