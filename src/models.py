@@ -188,8 +188,8 @@ class LoraTransformerModel(nn.Module):
         self.n_head, self.n_layer, self.prompt_dim = transformer_model.n_head, transformer_model.n_layer, transformer_model.prompt_dim
 
         # Freeze original model
-        for param in self.transformer_model._backbone.parameters():
-            param.requires_grad = False
+        for param in self.parameters():
+            param.requires_grad = False        
 
         self.lora_config = lora_config
         self.transformer_model._backbone = get_peft_model(self.transformer_model._backbone, self.lora_config)
