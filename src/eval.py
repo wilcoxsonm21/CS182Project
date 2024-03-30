@@ -16,6 +16,7 @@ from models import get_relevant_baselines_for_degree
 
 def get_model_from_run(run_path, step=-1, only_conf=False):
     config_path = os.path.join(run_path, "config.yaml")
+    print(run_path)
     with open(config_path) as fp:  # we don't Quinfig it to avoid inherits
         conf = Munch.fromDict(yaml.safe_load(fp))
     if only_conf:
@@ -56,6 +57,8 @@ def eval_batch(model, task_sampler, xs, include_noise=True, ground_truth_loss=Fa
         device = "cuda"
     else:
         device = "cpu"
+    device = "cuda"
+    #print("Warning: hard coded cuda as device in function 'eval_batch'")
     assert include_noise == False
     perturbations = np.arange(-1 * smoothing, smoothing + 0.002, 0.002)
     predictions = torch.zeros(len(perturbations), xs.shape[0], xs.shape[1])
@@ -66,6 +69,7 @@ def eval_batch(model, task_sampler, xs, include_noise=True, ground_truth_loss=Fa
         ys = task.evaluate(xs, noise=include_noise, separate_noise=False)
     for i in range(len(perturbations)):
         cur_xs = xs + perturbations[i]
+        #print(device)
         pred = model(cur_xs.to(device), ys.to(device)).detach()
         predictions[i] = pred.cpu()
     predictions = predictions.mean(dim=0)
@@ -207,6 +211,8 @@ def eval_model(
     """
     assert num_eval_examples % batch_size == 0
 
+    #print(task_sampler_kwargs)
+
     data_sampler = get_data_sampler(data_name, n_dims, **data_sampler_kwargs)
     task_sampler = get_task_sampler(
         task_name, n_dims, batch_size, **task_sampler_kwargs
@@ -298,6 +304,8 @@ def build_evals(conf):
         evaluation_kwargs[name] = base_kwargs.copy()
         evaluation_kwargs[name].update(kwargs)
 
+    #print(evaluation_kwargs)
+
     return evaluation_kwargs
 
 
@@ -343,6 +351,7 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
             if model.name in metrics and not recompute:
                 continue
             standard_args["task_sampler_kwargs"] = {"degree": i,} # TODO: fix this]
+            #print(standard_args)
             metrics[model.name] = eval_model(model, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing, **standard_args)
         all_metrics["degree-" + str(i)] = metrics
 
@@ -355,11 +364,11 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
 
 
 def get_run_metrics(
-    run_path, run_path_2=None, run_path_3=None, step=-1, cache=True, skip_model_load=False, skip_baselines=False, include_noise=True, ground_truth_loss=False, smoothing=0):
-    model, conf = get_model_from_run(run_path, 400000)
-    model.name += "_soft_prompt"
+    run_path, run_path_2=None, run_path_3=None, step=400000, cache=True, skip_model_load=False, skip_baselines=False, include_noise=True, ground_truth_loss=False, smoothing=0):
+    model, conf = get_model_from_run(run_path, step)
     transformer_model = model.cuda().eval()
     evaluation_kwargs = build_evals(conf)
+    #print(evaluation_kwargs)
 
     transformer_models = [transformer_model]
     if run_path_2 is not None:
@@ -381,7 +390,7 @@ def get_run_metrics(
             save_path = os.path.join(run_path, "metrics.json")
     else:
         save_path = os.path.join(run_path, f"metrics_{step}.json")
-    print(save_path)
+    #print(save_path)
     recompute = False
     if save_path is not None and os.path.exists(save_path):
         checkpoint_created = os.path.getmtime(run_path)
@@ -389,8 +398,9 @@ def get_run_metrics(
         if checkpoint_created > cache_created:
             recompute = True
 
+    #print(evaluation_kwargs)
     all_metrics = compute_evals_basis(transformer_models, evaluation_kwargs, save_path, recompute, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing)
-    print(all_metrics)
+    #print(all_metrics)
     return all_metrics
 
 

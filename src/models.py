@@ -52,6 +52,9 @@ def build_model(conf):
     elif conf.family == "gpt2-lora":
         transformer_model, _ = get_model_from_run(conf.pretrained_model_dir)
         model = LoraTransformerModel(transformer_model, lora_config=LoraConfig(**conf.lora_config))
+        print("Non-tranaible parameters:", model.get_non_trainable_params())
+        print("Trainable parameters:", model.get_trainable_params())
+        #print(model)
     else:
         raise NotImplementedError
 
