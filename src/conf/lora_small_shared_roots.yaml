@@ -1,0 +1,46 @@
+inherit: 
+    - models/small-lora.yaml
+    - wandb.yaml
+
+model:
+    n_dims: 1
+    n_positions: 131
+    pretrained_model_dir: ../models/kernel_linear_regression/bigger_model
+    lora_config:
+        r: 4 # rank
+        lora_alpha: 16
+        bias: none
+        lora_dropout: 0.0
+        target_modules: ["attn.c_attn"]
+
+training:
+    task: polynomial_shared_roots
+    data: uniform
+    task_kwargs: {"basis_dim": 5, "degree": 5}
+
+    batch_size: 64
+    learning_rate: 0.00005
+    save_every_steps: 1000
+    keep_every_steps: 100000
+    train_steps: 300001
+    curriculum:
+        dims:
+            start: 1
+            end: 1
+            inc: 1
+            interval: 2000
+        points:
+            start: 31
+            end: 31
+            inc: 1
+            interval: 1000
+        deg: 
+            start: 5
+            end: 5
+            inc: 0
+            interval: 500001
+
+out_dir: ../models/lora
+
+wandb:
+    name: "lora_small_shared_roots"
