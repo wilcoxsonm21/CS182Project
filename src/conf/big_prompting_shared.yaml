@@ -4,13 +4,13 @@ inherit:
 
 model:
     n_dims: 1
-    n_positions: 231
-    prompt_dim: 200
-    pretrained_model_dir: ../models/kernel_linear_regression/small-1-11-5M-steps
+    n_positions: 131
+    prompt_dim: 100
+    pretrained_model_dir: ../models/kernel_linear_regression/bigger_model
 
 training:
-    task: kernel_linear_regression
-    data: gaussian
+    task: polynomial_shared_roots
+    data: uniform
     task_kwargs: {"basis_dim": 5, "degree": 5}
 
     batch_size: 64
@@ -38,4 +38,4 @@ training:
 out_dir: ../models/soft_prompting
 
 wandb:
-    name: "big_prompting_degree_5"
+    name: "big_prompting_shared"

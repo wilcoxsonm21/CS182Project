@@ -1,12 +1,17 @@
 inherit: 
-    - models/small-prompt.yaml
+    - models/small-lora.yaml
     - wandb.yaml
 
 model:
     n_dims: 1
-    n_positions: 41
-    prompt_dim: 10
-    pretrained_model_dir: ../models/kernel_linear_regression/small-1-11-5M-steps
+    n_positions: 131
+    pretrained_model_dir: ../models/kernel_linear_regression/bigger_model
+    lora_config:
+        r: 16 # rank
+        lora_alpha: 16
+        bias: none
+        lora_dropout: 0.0
+        target_modules: ["attn.c_attn", "mlp.c_fc", "mlp.c_proj"]
 
 training:
     task: polynomial_shared_roots
@@ -35,7 +40,7 @@ training:
             inc: 0
             interval: 500001
 
-out_dir: ../models/soft_prompting
+out_dir: ../models/lora
 
 wandb:
-    name: "normal_prompting_shared_roots"
+    name: "lora_full_shared_roots"

@@ -4,19 +4,18 @@ inherit:
 
 model:
     n_dims: 1
-    n_positions: 41
-    prompt_dim: 10
-    pretrained_model_dir: ../models/kernel_linear_regression/small-1-11-5M-steps
+    n_positions: 131
+    pretrained_model_dir: ../models/kernel_linear_regression/bigger_model
     lora_config:
-        r: 4 # rank
+        r: 16 # rank
         lora_alpha: 16
         bias: none
         lora_dropout: 0.0
-        target_modules: ["attn.c_attn"]
+        target_modules: ["attn.c_attn", "mlp.c_fc", "mlp.c_proj"]
 
 training:
     task: kernel_linear_regression
-    data: gaussian
+    data: uniform
     task_kwargs: {"basis_dim": 5, "degree": 5}
 
     batch_size: 64
@@ -44,4 +43,4 @@ training:
 out_dir: ../models/lora
 
 wandb:
-    name: "lora_small_full_degree_5"
+    name: "lora_full_degree_5"
