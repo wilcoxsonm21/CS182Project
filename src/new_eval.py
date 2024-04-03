@@ -5,7 +5,7 @@ import yaml
 from typing import NamedTuple
 
 import models
-from eval import eval_model, build_evals
+from eval import eval_model, build_evals, get_relevant_baselines_for_degree
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -61,5 +61,22 @@ def new_get_run_metrics(run_path: Path, step: int, device: str = "cuda", include
 
     # Loop wanted degrees
     metrics = eval_model(model, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing, device=device, **standard_args)
+
+    return metrics
+
+def baseline_data(train_conf_path: Path, include_noise=True, ground_truth_loss=False, smoothing=0, device="cuda"):
+
+    config = get_config(train_conf_path)
+    degree = config.training.task_kwargs["degree"]
+
+    # Set configuration    
+    evaluation_kwargs = build_evals(config)
+    standard_args = evaluation_kwargs["standard"]
+    standard_args["task_sampler_kwargs"] = config.training.task_kwargs
+
+    metrics = {}
+    baselines =  get_relevant_baselines_for_degree(degree)
+    for model in baselines:
+        metrics[model.name] = eval_model(model, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing, device=device, **standard_args)
 
     return metrics

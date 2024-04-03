@@ -118,7 +118,7 @@ def get_relevant_baselines(task_name):
 
 def get_relevant_baselines_for_degree(degree):
     task_for_degree =  [
-            (ChebyshevKernelLeastSquaresModel, {"basis_dim": degree}),
+        (ChebyshevKernelLeastSquaresModel, {"basis_dim": degree}),
         (ChebyshevKernelLeastSquaresModelWithRidge, {"basis_dim": degree}),
         ]
 
@@ -242,6 +242,12 @@ class SoftPromptTransformerModel(nn.Module):
         output = self.transformer_model._backbone(inputs_embeds=embeds).last_hidden_state
         prediction = self.transformer_model._read_out(output)
         return prediction[:, self.prompt_dim*2::2, 0][:, inds]  # predict only on xs, and only after the prompt
+    
+    def get_trainable_params(self):
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+    
+    def get_non_trainable_params(self):
+        return sum(p.numel() for p in self.parameters() if not p.requires_grad)
     
 
 class HardPromptTransformerModel(nn.Module):
