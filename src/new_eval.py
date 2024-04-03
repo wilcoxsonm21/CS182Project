@@ -18,6 +18,7 @@ class LoadInfo(NamedTuple):
     path: Path
     step: int
     alternative_train_conf_path: Path = None
+    alternative_name: str = ""
     name_addon: str = ""
 
 def get_config(config_path: Path):
@@ -77,6 +78,7 @@ def baseline_data(train_conf_path: Path, include_noise=True, ground_truth_loss=F
     metrics = {}
     baselines =  get_relevant_baselines_for_degree(degree)
     for model in baselines:
+        model.name = model.name[:-len("_driver=None")]
         metrics[model.name] = eval_model(model, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing, device=device, **standard_args)
 
     return metrics

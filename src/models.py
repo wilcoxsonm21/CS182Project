@@ -46,14 +46,16 @@ def build_model(conf, device="cuda"):
     elif conf.family == "gpt2-soft-prompt":
         transformer_model, _ = get_model_from_run(conf.pretrained_model_dir, device=device)
         model = SoftPromptTransformerModel(transformer_model, conf)
+        print("SoftPrompt Non-tranaible parameters:", model.get_non_trainable_params())
+        print("SoftPrompt Trainable parameters:", model.get_trainable_params(), "\n")
     elif conf.family == "gpt2-hard-prompt":
         transformer_model, _ = get_model_from_run(conf.pretrained_model_dir, device=device)
         model = HardPromptTransformerModel(transformer_model, conf)
     elif conf.family == "gpt2-lora":
         transformer_model, _ = get_model_from_run(conf.pretrained_model_dir, device=device)
         model = LoraTransformerModel(transformer_model, lora_config=LoraConfig(**conf.lora_config))
-        print("Non-tranaible parameters:", model.get_non_trainable_params())
-        print("Trainable parameters:", model.get_trainable_params())
+        print("Lora Non-tranaible parameters:", model.get_non_trainable_params())
+        print("Lora Trainable parameters:", model.get_trainable_params(), "\n")
         #print(model)
     else:
         raise NotImplementedError
