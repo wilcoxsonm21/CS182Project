@@ -5,7 +5,7 @@ inherit:
 model:
     n_dims: 1
     n_positions: 41
-    prompt_dim: 10
+    prompt_dim: 2
     pretrained_model_dir: ../models/kernel_linear_regression/small-1-11-5M-steps
 
 training:

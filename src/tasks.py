@@ -128,6 +128,7 @@ def get_task_sampler(
         "chebyshev_kernel_linear_regression": ChebyshevKernelLinearRegression,
         "polynomial_shared_roots": PolynomialSharedRoots,
     }
+
     if task_name in task_names_to_classes:
         task_cls = task_names_to_classes[task_name]
         if num_tasks is not None:
@@ -181,7 +182,7 @@ class LinearRegression(Task):
         return mean_squared_error
 
 class ChebyshevKernelLinearRegression(Task):
-    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1, different_degrees=False, lowest_degree=1, highest_degree=1, curriculum=None):
+    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1, different_degrees=False, lowest_degree=1, highest_degree=1, fixed_coeffs=None, curriculum=None):
         """scale: a constant by which to scale the randomly sampled weights."""
         assert basis_dim >= highest_degree, "Basis dimension must be greater than or equal to highest degree"
         super(ChebyshevKernelLinearRegression, self).__init__(n_dims, batch_size, pool_dict, seeds) 
@@ -206,11 +207,14 @@ class ChebyshevKernelLinearRegression(Task):
         ], dtype=torch.float)
         
         self.chebyshev_coeffs = self.chebyshev_coeffs[:self.basis_dim + 1, :self.basis_dim + 1]
-        combinations = torch.randn(size=(self.b_size, self.basis_dim + 1)) 
+        combinations = scale*torch.randn(size=(self.b_size, self.basis_dim + 1)) 
+        if fixed_coeffs is not None:
+            combinations[:, :fixed_coeffs] = 1
         if self.diff_poly_degree:
             mask = torch.ones(combinations.shape[0], combinations.shape[-1], dtype=torch.float32)
             if curriculum:
                 self.highest_degree = curriculum.highest_degree
+            print("HIGHEST DEGREE: ", self.highest_degree)
             indices = torch.randint(self.lowest_degree, self.highest_degree + 1, (combinations.shape[0], 1))    # Note the dimensions
             self.indices = indices
             mask[torch.arange(0, combinations.shape[-1], dtype=torch.float32).repeat(combinations.shape[0],1) >= indices] = 0
@@ -247,13 +251,13 @@ class ChebyshevKernelLinearRegression(Task):
         return mean_squared_error
 
 class PolynomialSharedRoots(Task):
-    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1, degree=1, curriculum=None):
+    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1, degree=1, curriculum=None, perturbation=0.1):
         """scale: a constant by which to scale the randomly sampled weights."""
         super(PolynomialSharedRoots, self).__init__(n_dims, batch_size, pool_dict, seeds)
         self.basis_dim = basis_dim
         self.curriculum = curriculum
         self.degree = degree
-        self.polys, self.scales = self.construct_polynomial(degree, batch_size=batch_size, num_to_not_perturb=2)
+        self.polys, self.scales = self.construct_polynomial(degree, batch_size=batch_size, perturbation=perturbation, num_to_not_perturb=2)
 
 
     def construct_polynomial(
