@@ -1,0 +1,47 @@
+inherit: 
+    - models/small-prompt-back.yaml
+    - wandb.yaml
+
+model:
+    n_dims: 1
+    n_positions: 131
+    prompt_dim: 99
+    pretrained_model_dir: ../models/kernel_linear_regression/bigger_model
+    positional_encoding: true
+
+training:
+    task: kernel_linear_regression
+    data: uniform
+    resume_id: prompt_model_back
+    task_kwargs: {"basis_dim": 5, "degree": 5}
+
+    num_tasks: null
+    num_training_examples: null
+    noise_variance: 0
+
+    batch_size: 64
+    learning_rate: 0.00005
+    save_every_steps: 1000
+    keep_every_steps: 100000
+    train_steps: 500001
+    curriculum:
+        dims:
+            start: 1
+            end: 1
+            inc: 1
+            interval: 2000
+        points:
+            start: 32
+            end: 32
+            inc: 1
+            interval: 1000
+        deg: 
+            start: 5
+            end: 5
+            inc: 0
+            interval: 500001
+
+out_dir: ../models/soft_prompting_back
+
+wandb:
+    name: "high_prompting_back"

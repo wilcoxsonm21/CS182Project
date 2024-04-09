@@ -57,7 +57,7 @@ def get_model_names_for_degree(degree):
     if degree > 1:
         names.append("Chebyshev Ridge 1")
 
-def basic_plot(metrics, trivial=1.0, yhigh_lim=float('inf')):
+def basic_plot(metrics, trivial=1.0, yhigh_lim=float('inf'), title=""):
     fig, ax = plt.subplots(1, 1)
 
     color = 0
@@ -74,11 +74,13 @@ def basic_plot(metrics, trivial=1.0, yhigh_lim=float('inf')):
     ax.set_ylabel("squared error")
     #ax.set_xlim(-1, len(low) + 0.1)
     ax.set_ylim(-0.05, min(max_val*1.01, yhigh_lim))
+    ax.set_title(title) 
 
     legend = ax.legend(loc="upper left", bbox_to_anchor=(1, 1))
     fig.set_size_inches(4, 3)
     for line in legend.get_lines():
         line.set_linewidth(3)
+
 
     return fig, ax
 
