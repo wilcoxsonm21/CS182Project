@@ -5,11 +5,11 @@ parser = argparse.ArgumentParser(description="Process some integers.")
 parser.add_argument("-j", default=4, type=int)
 parser.add_argument("--name", type=str)
 parser.add_argument("--conda_env_name", type=str)
-parser.add_argument("partition", default="savio4_gpu", type=str)
-parser.add_argument("qos", default="a5k_gpu4_normal", type=str)
-parser.add_argument("cpus_per_task", default=4, type=int)
-parser.add_argument("gpu", default="A5000", type=str)
-
+parser.add_argument("--partition", default="savio4_gpu", type=str)
+parser.add_argument("--qos", default="a5k_gpu4_normal", type=str)
+parser.add_argument("--cpus_per_task", default=4, type=int)
+parser.add_argument("--gpu", default="A5000", type=str)
+parser.add_argument("--memory", default=24, type=int)
 
 args, unknown = parser.parse_known_args()
 
@@ -67,7 +67,7 @@ sbatch_str = f"""#!/bin/bash
 #SBATCH --output=logs/out/%x_%j.txt
 #SBATCH --error=logs/err/%x_%j.txt
 #SBATCH --time=24:00:00
-#SBATCH --mem=24G
+#SBATCH --mem={args.memory}G
 #SBATCH --cpus-per-task={args.cpus_per_task}
 #SBATCH --gres=gpu:{args.gpu}:1
 #SBATCH --account=fc_ocow
@@ -92,5 +92,7 @@ declare -a commands=(
 parallel --delay 20 --linebuffer -j {args.j} {{1}} ::: \"${{commands[@]:$COM_ID_S:$PARALLEL_N}}\"
 """
 
-with open(f"sbatch/{name}.sh", "w") as f:
+filename = f"sbatch/{name}.sh"
+os.makedirs(os.path.dirname(filename), exist_ok=True)
+with open(filename, "w") as f:
     f.write(sbatch_str)

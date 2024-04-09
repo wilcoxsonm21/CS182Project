@@ -106,7 +106,6 @@ dependencies:
       - nest-asyncio==1.5.8
       - notebook==7.0.6
       - notebook-shim==0.2.3
-      - npeet==1.0.1
       - numpy==1.22.3
       - overrides==7.4.0
       - packaging==23.2
@@ -180,4 +179,4 @@ dependencies:
       - xgboost==1.6.1
       - yaspin==2.5.0
       - zipp==3.17.0
-prefix: /ext3/anaconda3/envs/in-context-learning
+prefix: /ext3/miniconda3/envs/in-context-learning
