@@ -1,0 +1,41 @@
+inherit: 
+    - models/small-prompt.yaml
+    - wandb.yaml
+
+model:
+    n_dims: 1
+    n_positions: 41
+    prompt_dim: 2
+    pretrained_model_dir: ../models/kernel_linear_regression/small-1-11-5M-steps
+
+training:
+    task: polynomial_shared_roots
+    data: uniform
+    task_kwargs: {"basis_dim": 5, "degree": 5, "perturbation": 0.3}
+
+    batch_size: 64
+    learning_rate: 0.00005
+    save_every_steps: 1000
+    keep_every_steps: 100000
+    train_steps: 100001
+    curriculum:
+        dims:
+            start: 1
+            end: 1
+            inc: 1
+            interval: 2000
+        points:
+            start: 31
+            end: 31
+            inc: 1
+            interval: 1000
+        deg: 
+            start: 3
+            end: 3
+            inc: 0
+            interval: 500001
+
+out_dir: ../models/soft_prompting
+
+wandb:
+    name: "chebyshev_linear_regression_toy"
