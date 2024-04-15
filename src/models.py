@@ -196,16 +196,27 @@ class TransformerModel(nn.Module):
             inds = torch.tensor(inds)
             if max(inds) >= ys.shape[1] or min(inds) < 0:
                 raise ValueError("inds contain indices where xs and ys are not defined")
+            
         zs = self._combine(xs, ys)
         embeds = self._read_in(zs)
         output = self._backbone(inputs_embeds=embeds).last_hidden_state
         prediction = self._read_out(output)
         return prediction[:, ::2, 0][:, inds]  # predict only on xs
     
+    def attention_matrix(self, xs, ys):
+
+        inds = torch.arange(ys.shape[1])
+
+        zs = self._combine(xs, ys)
+        embeds = self._read_in(zs)
+        output = self._backbone(inputs_embeds=embeds, output_attentions=True)
+        output_values = output.last_hidden_state # type: ignore
+        output_attentions = output.attentions
+        prediction = self._read_out(output_values)
+        return prediction[:, ::2, 0][:, inds], output_attentions  # predict only on xs
+    
 
 class TransformerModelWrapper(nn.Module):
-
-    transformer_model: TransformerModel = None
 
     def get_trainable_params(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
@@ -256,7 +267,7 @@ class SoftPromptTransformerModel(nn.Module):
         self.prompt = nn.Parameter(self.transformer_model._read_in(start_inputs)) # batch size, prompt dim * 2 (x and y), embedding dim, initialize with a possible actual input
         self.name = f"gpt2-soft-prompt_embd={self.n_embd}_layer={self.n_layer}_head={self.n_head}"
     
-    def forward(self, xs, ys, inds=None):
+    def forward(self, xs, ys, inds=None, output_attentions=False):
         if inds is None:
             inds = torch.arange(ys.shape[1])
         else:

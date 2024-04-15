@@ -3,9 +3,11 @@ from munch import Munch
 from pathlib import Path
 import yaml
 from typing import List, NamedTuple
+import numpy as np
 
 import models
 from eval import eval_model, build_evals, get_relevant_baselines_for_degree
+from tasks import get_task_sampler
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -27,6 +29,33 @@ def get_config(config_path: Path) -> Box:
 
     with open(config_path) as fp:  # we don't Quinfig it to avoid inherits
         return Box(yaml.safe_load(fp))
+    
+
+def eval_batch_att(model, task_sampler, xs, device="cuda"):
+
+    # Generat random x-values between -1 and 1
+    
+
+    task = task_sampler()
+    assert include_noise == False
+    perturbations = np.arange(-1 * smoothing, smoothing + 0.002, 0.002)
+    predictions = torch.zeros(len(perturbations), xs.shape[0], xs.shape[1])
+    if ground_truth_loss:
+        ys, noise = task.evaluate(xs, noise=include_noise, separate_noise=True)
+        ys = ys + noise
+    else:
+        ys = task.evaluate(xs, noise=include_noise, separate_noise=False)
+    for i in range(len(perturbations)):
+        cur_xs = xs + perturbations[i]
+        #print(device)
+        pred = model.attattention_matrix(cur_xs.to(device), ys.to(device)).detach()
+        predictions[i] = pred.cpu()
+    predictions = predictions.mean(dim=0)
+    if ground_truth_loss:
+        metrics = task.get_metric()(predictions, ys - noise)
+    else: 
+        metrics = task.get_metric()(predictions, ys)
+    return metrics
 
 def new_get_model_from_run(run_path: Path, step, device="cuda") -> torch.nn.Module:
 
@@ -48,6 +77,38 @@ def new_get_model_from_run(run_path: Path, step, device="cuda") -> torch.nn.Modu
     return model, conf
 
 
+def new_get_run_metrics2(run_path: Path, step: int, device: str = "cuda", alternative_train_conf_path=None):
+
+    # Get model
+    model, config = new_get_model_from_run(run_path, step, device=device)
+    model = model.eval()
+
+    #print(model)
+
+    if alternative_train_conf_path is not None:
+        config.training = get_config(alternative_train_conf_path).training
+
+    # Set configuration    
+    evaluation_kwargs = build_evals(config)
+    standard_args = evaluation_kwargs["standard"]
+    standard_args["task_sampler_kwargs"] = config.training.task_kwargs
+
+    # Loop wanted degrees
+    gen_task_sampler = get_task_sampler(
+        standard_args["task_name"], standard_args["n_dims"], standard_args["batch_size"], **standard_args["task_sampler_kwargs"]
+    )
+
+    #print(evaluation_kwargs, standard_args)
+
+    task_sampler = gen_task_sampler()
+    xs = torch.rand((config.training.batch_size, config.training.curriculum.points.end, 1)) * 2 - 1
+    ys = task_sampler.evaluate(xs)
+
+    vals, attention = model.attention_matrix(xs.to(device), ys.to(device))
+
+    return vals, attention
+
+
 def new_get_run_metrics(run_path: Path, step: int, device: str = "cuda", include_noise=True, ground_truth_loss=False, smoothing=0, alternative_train_conf_path=None):
 
     # Get model
@@ -64,6 +125,9 @@ def new_get_run_metrics(run_path: Path, step: int, device: str = "cuda", include
 
     # Loop wanted degrees
     metrics = eval_model(model, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing, device=device, **standard_args)
+    task_sampler = get_task_sampler(
+        **standard_args
+    )
 
     return metrics
 
@@ -119,3 +183,6 @@ def get_modelpaths_by_filter(models_parent_directories: List[Path], config_filte
                     print(f"Warning: {config_path} not found.")
 
     return model_paths
+
+if __name__ == "__main__":
+    pass
