@@ -127,7 +127,7 @@ def get_task_sampler(
         "kernel_linear_regression": ChebyshevKernelLinearRegression,
         "chebyshev_kernel_linear_regression": ChebyshevKernelLinearRegression,
         "polynomial_shared_roots": PolynomialSharedRoots,
-        "mixed_sliced_chebyshev": MixedSlicedChebychev,
+        "mixed_sliced_polynomial": MixedSlicedPolynomial,
         "chebyshev_shared_roots": ChebychevSharedRoots
     }
     if task_name in task_names_to_classes:
@@ -311,7 +311,7 @@ class ChebychevSharedRoots(Task):
     def get_training_loss(self):
         return mean_squared_error
     
-class MixedSlicedChebychev(Task):
+class MixedSlicedPolynomial(Task):
 
     def __init__(self, n_dims, batch_size, pool_dict = None, seeds = None, curriculum = None):
         """
@@ -329,9 +329,9 @@ class MixedSlicedChebychev(Task):
         max_slices = 10
         lowest_degree = 3
         highest_degree = 11
-        perturbation=0.7
-        scaling_perc=0.7
-        super(MixedSlicedChebychev, self).__init__(n_dims, batch_size, pool_dict, seeds)
+        perturbation=0.3
+        scaling_perc=0.9
+        super(MixedSlicedPolynomial, self).__init__(n_dims, batch_size, pool_dict, seeds)
 
         self.min_slices = min_slices
         self.max_slices = max_slices
@@ -344,10 +344,6 @@ class MixedSlicedChebychev(Task):
         self._one_minus_one = torch.tensor([-1, 1])
         self.scaling_perc = scaling_perc
 
-        k = torch.arange(1, highest_degree + 1)
-        self.chebychev_roots = torch.cos((2 * k - 1) * torch.pi / (2 * highest_degree))
-        #print("K shape:", k.shape,"Roots shape:", self.chebychev_roots.shape)
-        self.chebychev_roots = self.chebychev_roots.unsqueeze(0).expand(batch_size, -1) # (batch_size, different_roots)
         self.mask = torch.ones((highest_degree - lowest_degree + 1, highest_degree), dtype=torch.bool)
         for i, degree in enumerate(range(lowest_degree, highest_degree + 1)):
             self.mask[i][:degree] = 0
@@ -382,8 +378,9 @@ class MixedSlicedChebychev(Task):
         # Perturb roots
         # self.chebyshev_roots (batch_size, different_roots)
         # chebychev_roots (batch_size, slices, different_roots)
-        chebychev_roots = self.chebychev_roots.unsqueeze(1).expand(-1, len(idx_slices), -1)
-        roots = chebychev_roots + 2*self.perturbation*torch.rand((xs_b.shape[0], 1, chebychev_roots.shape[-1])) - self.perturbation
+        roots = 2*torch.rand((xs_b.shape[0], 1, self.highest_degree)) - 1
+        perturb = 2*self.perturbation * torch.rand((xs_b.shape[0], len(idx_slices), self.highest_degree)) - self.perturbation
+        roots = roots + perturb
 
         # (batch_size, slices, x_points, different_roots)
         roots = roots.unsqueeze(2).expand(-1, -1, xs_b.shape[1], -1)

@@ -1,27 +1,28 @@
 inherit: 
-    - models/small.yaml
+    - models/small-prompt.yaml
     - wandb.yaml
 
 model:
     n_dims: 1
     n_positions: 131
+    prompt_dim: 100
+    pretrained_model_dir: ../models/mixed_sliced_chebychev/unknown
 
 training:
-    task: mixed_sliced_chebyshev
+    task: chebyshev_shared_roots
     data: uniform
-    resume_id: mixed_sliced_chebychev
+    resume_id: chebyshev_shared_roots_prompt
 
     num_tasks: null
     num_training_examples: null
     noise_variance: 0.0
-
     task_kwargs: {}
 
     batch_size: 64
     learning_rate: 0.00005
     save_every_steps: 1000
     keep_every_steps: 100000
-    train_steps: 1000001
+    train_steps: 500001
     curriculum:
         dims:
             start: 1
@@ -29,8 +30,8 @@ training:
             inc: 1
             interval: 2000
         points:
-            start: 131
-            end: 131
+            start: 31
+            end: 31
             inc: 1
             interval: 1000
         deg: 
@@ -39,7 +40,7 @@ training:
             inc: 0
             interval: 500001
 
-out_dir: ../models/mixed_sliced_chebychev
+out_dir: ../models/chebyshev_shared_roots_prompt
 
 wandb:
-    name: "mixed_sliced_chebychev"
+    name: "chebyshev_shared_roots_prompt"

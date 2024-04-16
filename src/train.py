@@ -203,12 +203,12 @@ if __name__ == "__main__":
     #prompt_conf = model_utils.load_config("conf/big_prompting_shared_outside.yaml")
     #load_and_train(prompt_conf, device=device, wandb_mode=wandb_mode)
 
-    conf = model_utils.load_config("conf/mixed_sliced_chebychev.yaml")
+    conf = model_utils.load_config("conf/mixed_sliced_polynomial.yaml")
     out_dir = load_and_train(conf, device=device, wandb_mode=wandb_mode)
 
-    prompt_conf = model_utils.load_config("conf/mixed_sliced_chebychev_prompting.yaml")
+    prompt_conf = model_utils.load_config("conf/mixed_sliced_polynomial_prompting.yaml")
     prompt_conf.model.pretrained_model_dir = str(out_dir)
-    load_and_train(conf, device=device, wandb_mode=wandb_mode)
+    load_and_train(prompt_conf, device=device, wandb_mode=wandb_mode)
 
     #base_model_dir = Path("../models/kernel_linear_regression/bigger_model")
 
