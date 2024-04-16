@@ -329,8 +329,8 @@ class MixedSlicedChebychev(Task):
         max_slices = 10
         lowest_degree = 3
         highest_degree = 11
-        perturbation=0.2
-        scaling_perc=0.3
+        perturbation=0.7
+        scaling_perc=0.7
         super(MixedSlicedChebychev, self).__init__(n_dims, batch_size, pool_dict, seeds)
 
         self.min_slices = min_slices
@@ -383,7 +383,7 @@ class MixedSlicedChebychev(Task):
         # self.chebyshev_roots (batch_size, different_roots)
         # chebychev_roots (batch_size, slices, different_roots)
         chebychev_roots = self.chebychev_roots.unsqueeze(1).expand(-1, len(idx_slices), -1)
-        roots = chebychev_roots + 2*self.perturbation*torch.rand(chebychev_roots.shape) - self.perturbation
+        roots = chebychev_roots + 2*self.perturbation*torch.rand((xs_b.shape[0], 1, chebychev_roots.shape[-1])) - self.perturbation
 
         # (batch_size, slices, x_points, different_roots)
         roots = roots.unsqueeze(2).expand(-1, -1, xs_b.shape[1], -1)

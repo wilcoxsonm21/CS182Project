@@ -22,7 +22,7 @@ training:
     learning_rate: 0.00005
     save_every_steps: 1000
     keep_every_steps: 100000
-    train_steps: 300001
+    train_steps: 200001
     curriculum:
         dims:
             start: 1

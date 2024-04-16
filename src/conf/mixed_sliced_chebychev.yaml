@@ -21,7 +21,7 @@ training:
     learning_rate: 0.00005
     save_every_steps: 1000
     keep_every_steps: 100000
-    train_steps: 1400001
+    train_steps: 1000001
     curriculum:
         dims:
             start: 1
@@ -29,8 +29,8 @@ training:
             inc: 1
             interval: 2000
         points:
-            start: 31
-            end: 31
+            start: 131
+            end: 131
             inc: 1
             interval: 1000
         deg: 
