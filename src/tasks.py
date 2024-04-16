@@ -291,9 +291,9 @@ class ChebychevSharedRoots(Task):
         ys_b = poly_values / max_per_sample.unsqueeze(1)
 
         if noise and not separate_noise:
-            return ys_b + math.sqrt(noise_variance) * torch.randn_like(ys_b)
+            return ys_b + torch.sqrt(noise_variance) * torch.randn_like(ys_b)
         elif noise and separate_noise:
-            return ys_b, math.sqrt(noise_variance) * torch.randn_like(ys_b)
+            return ys_b, torch.sqrt(noise_variance) * torch.randn_like(ys_b)
         else:
             if separate_noise:
                 return ys_b, torch.zeros_like(ys_b)
@@ -401,21 +401,21 @@ class MixedSlicedChebychev(Task):
         # Add some randomness to sign, and partially random scaling
         poly_val_collection = []
         for i, idx_slice in enumerate(idx_slices):
-            relevant_polys = poly_values[:, i]
-            max_per_sample = torch.max(torch.abs(relevant_polys), dim=1).values
+            relevant_poly_values = poly_values[:, i, idx_slice]
 
-            relevant_poly_values = relevant_polys[:, idx_slice]
-            relevant_poly_values = relevant_poly_values * self._one_minus_one[torch.randint(0, 2, (self.batch_size, 1))] * (self.scaling_perc * torch.rand((self.batch_size, 1)) + (1-self.scaling_perc))
-            relevant_poly_values = relevant_poly_values / max_per_sample.unsqueeze(1)
+            if relevant_poly_values.shape[1] != 0:
+                max_val = torch.max(torch.abs(relevant_poly_values), dim=1).values
+                relevant_poly_values = relevant_poly_values * self._one_minus_one[torch.randint(0, 2, (self.batch_size, 1))] * (self.scaling_perc * torch.rand((self.batch_size, 1)) + (1-self.scaling_perc))
+                relevant_poly_values = relevant_poly_values / max_val.unsqueeze(1)
             
             poly_val_collection.append(relevant_poly_values)
 
         ys_b = torch.cat(poly_val_collection, dim=1)
 
         if noise and not separate_noise:
-            return ys_b + math.sqrt(noise_variance) * torch.randn_like(ys_b)
+            return ys_b + torch.sqrt(noise_variance) * torch.randn_like(ys_b)
         elif noise and separate_noise:
-            return ys_b, math.sqrt(noise_variance) * torch.randn_like(ys_b)
+            return ys_b, torch.sqrt(noise_variance) * torch.randn_like(ys_b)
         else:
             if separate_noise:
                 return ys_b, torch.zeros_like(ys_b)
