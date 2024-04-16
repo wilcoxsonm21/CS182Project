@@ -15,7 +15,8 @@ training:
 
     num_tasks: null
     num_training_examples: null
-    noise_variance: 0
+    noise_variance: 0.0
+    task_kwargs: {}
 
     batch_size: 64
     learning_rate: 0.00005

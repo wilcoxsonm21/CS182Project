@@ -254,8 +254,11 @@ class ChebyshevKernelLinearRegression(Task):
 
 class ChebychevSharedRoots(Task):
 
-    def __init__(self, n_dims, batch_size, degree=5, perturbation=0.1, scaling_perc=0.2, pool_dict=None, seeds=None):
+    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, curriculum = None):
         """scale: a constant by which to scale the randomly sampled weights."""
+        degree=5
+        perturbation=0.2
+        scaling_perc=0.3
         super(ChebychevSharedRoots, self).__init__(n_dims, batch_size, pool_dict, seeds)
 
         self.perturbation = perturbation
@@ -274,7 +277,7 @@ class ChebychevSharedRoots(Task):
         # (batch_size, x_points, different_roots)
         roots = roots.unsqueeze(1).expand(-1, xs_b.shape[1], -1)
         # (batch_size, different_points, repeated x_points)
-        xs_b = xs_b.unsqueeze(2).expand(-1, -1, roots.shape[-1])
+        xs_b = xs_b.expand(-1, -1, roots.shape[-1])
 
         # Get values
         poly_values = torch.prod(xs_b - roots, dim=2)
@@ -310,8 +313,7 @@ class ChebychevSharedRoots(Task):
     
 class MixedSlicedChebychev(Task):
 
-    def __init__(self, n_dims, batch_size, min_slices: int = 1, max_slices: int = 5, lowest_degree: int = 3, highest_degree: int = 11, 
-                 perturbation=0.3, scaling_perc=0.3, pool_dict = None, seeds = None):
+    def __init__(self, n_dims, batch_size, pool_dict = None, seeds = None, curriculum = None):
         """
         Creates a task where the output is several polynomials with shared roots, but concatenated at random intervals.
         Lets you learn about the roots globally, while also learning about the local structure of the polynomials.
@@ -323,6 +325,12 @@ class MixedSlicedChebychev(Task):
         perturbation: how much to perturb the roots
         scaling_perc: percentage of scaling to be random, remaining part of scaling is normalized
         """
+        min_slices = 1
+        max_slices = 10
+        lowest_degree = 3
+        highest_degree = 11
+        perturbation=0.2
+        scaling_perc=0.3
         super(MixedSlicedChebychev, self).__init__(n_dims, batch_size, pool_dict, seeds)
 
         self.min_slices = min_slices
@@ -363,7 +371,6 @@ class MixedSlicedChebychev(Task):
         """
         xs_b: (batch_size, points)
         """
-
         # Rearange xs_b
         idx, idx_slices = self._random_interval_rearange_indexes(xs_b)
 
@@ -381,7 +388,7 @@ class MixedSlicedChebychev(Task):
         # (batch_size, slices, x_points, different_roots)
         roots = roots.unsqueeze(2).expand(-1, -1, xs_b.shape[1], -1)
         # (batch_size, slices, different_points, repeated x_points)
-        xs_b = xs_b.unsqueeze(2).unsqueeze(1).expand(-1, len(idx_slices), -1, roots.shape[-1])
+        xs_b = xs_b.unsqueeze(1).expand(-1, len(idx_slices), -1, roots.shape[-1])
 
         # current_mask (batch_size, slices, different_points, roots)
         current_mask = self.mask[degrees, :].unsqueeze(1).unsqueeze(1).expand(-1, len(idx_slices), xs_b.shape[2], -1)
@@ -414,6 +421,17 @@ class MixedSlicedChebychev(Task):
                 return ys_b, torch.zeros_like(ys_b)
             else:
                 return ys_b
+            
+    @staticmethod
+    def generate_pool_dict(n_dims, num_tasks, **kwargs):  # ignore extra args
+        return {"w": torch.randn(num_tasks, n_dims, 1)}
+
+    @staticmethod
+    def get_metric():
+        return squared_error
+
+    def get_training_loss(self):
+        return mean_squared_error
 
 class PolynomialSharedRoots(Task):
     def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1, degree=1, curriculum=None):
