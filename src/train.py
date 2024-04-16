@@ -197,15 +197,20 @@ def train_mulitple_soft_prompts(base_model_dir: Path, prompt_conf: Box, soft_pro
 if __name__ == "__main__":
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    wandb_mode = "online" # online, offline, disabled
+    wandb_mode = "disabled" # online, offline, disabled
+
+    #Try me
+    prompt_conf = model_utils.load_config("conf/big_prompting_shared_outside.yaml")
+    load_and_train(prompt_conf, device=device, wandb_mode=wandb_mode)
+    #base_model_dir = Path("../models/kernel_linear_regression/bigger_model")
 
     # Train special back with 50 in middle
-    prompt_conf = model_utils.load_config("conf/prompting_small_back.yaml")
-    base_model_dir = Path("../models/kernel_linear_regression/bigger_model")
-    train_mulitple_soft_prompts(base_model_dir, prompt_conf, [51], device=device, wandb_mode=wandb_mode)
+    #prompt_conf = model_utils.load_config("conf/prompting_small_back.yaml")
+    #base_model_dir = Path("../models/kernel_linear_regression/bigger_model")
+    #train_mulitple_soft_prompts(base_model_dir, prompt_conf, [11, 21, 31, 41], device=device, wandb_mode=wandb_mode)
 
     # Train model on soft_prompts in front
-    prompt_conf = model_utils.load_config("conf/prompting_front.yaml")
+    """prompt_conf = model_utils.load_config("conf/prompting_front.yaml")
     base_model_dir = Path("../models/kernel_linear_regression/bigger_model")
     train_mulitple_soft_prompts(base_model_dir, prompt_conf, [50, 60, 70, 80, 90, 100], device=device, wandb_mode=wandb_mode)
 
@@ -230,7 +235,7 @@ if __name__ == "__main__":
     base_model_dir = load_and_train(base_conf, device=device, wandb_mode=wandb_mode)
     print(f"Finished training base model, and saved to {base_model_dir}")
 
-    train_mulitple_soft_prompts(base_model_dir, prompt_conf, [50, 60, 70, 80, 90, 100], device=device, wandb_mode=wandb_mode)
+    train_mulitple_soft_prompts(base_model_dir, prompt_conf, [50, 60, 70, 80, 90, 100], device=device, wandb_mode=wandb_mode)"""
 
 
     

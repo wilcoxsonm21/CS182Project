@@ -77,7 +77,7 @@ def new_get_model_from_run(run_path: Path, step, device="cuda") -> torch.nn.Modu
     return model, conf
 
 
-def new_get_run_metrics2(run_path: Path, step: int, device: str = "cuda", alternative_train_conf_path=None):
+def new_get_run_metrics2(run_path: Path, step: int, device: str = "cuda", alternative_train_conf_path=None, x_sorted=False):
 
     # Get model
     model, config = new_get_model_from_run(run_path, step, device=device)
@@ -102,6 +102,8 @@ def new_get_run_metrics2(run_path: Path, step: int, device: str = "cuda", altern
 
     task_sampler = gen_task_sampler()
     xs = torch.rand((config.training.batch_size, config.training.curriculum.points.end, 1)) * 2 - 1
+    if x_sorted:
+        xs = torch.sort(xs, dim=1).values
     ys = task_sampler.evaluate(xs)
 
     vals, attention = model.attention_matrix(xs.to(device), ys.to(device))

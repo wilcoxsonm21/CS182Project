@@ -78,6 +78,11 @@ def build_model(conf, device="cuda"):
         print("Lora Non-tranaible parameters:", model.get_non_trainable_params())
         print("Lora Trainable parameters:", model.get_trainable_params(), "\n")
         #print(model)
+    elif conf.family == "gpt2-soft-prompt-outside":
+        transformer_model, _ = get_model_from_run(conf.pretrained_model_dir, device=device)
+        model = SoftPromptsOutsidePosition(transformer_model, conf)
+        print("SoftPromptOutside Non-tranaible parameters:", model.get_non_trainable_params())
+        print("SoftPromptOutside Trainable parameters:", model.get_trainable_params(), "\n")
     else:
         raise NotImplementedError
 
@@ -282,11 +287,87 @@ class SoftPromptTransformerModel(nn.Module):
         prediction = self.transformer_model._read_out(output)
         return prediction[:, self.prompt_dim*2::2, 0][:, inds]  # predict only on xs, and only after the prompt
     
+    def attention_matrix(self, xs, ys):
+
+        inds = torch.arange(ys.shape[1])
+
+        zs = self.transformer_model._combine(xs, ys)
+        embeds = self.transformer_model._read_in(zs)
+        prompt = self.prompt.repeat(xs.shape[0], 1, 1)
+        embeds = torch.cat((prompt, embeds), dim=1)
+        output = self.transformer_model._backbone(inputs_embeds=embeds, output_attentions=True)
+        output_vals = output.last_hidden_state
+        prediction = self.transformer_model._read_out(output_vals)
+        return prediction[:, self.prompt_dim*2::2, 0][:, inds], output.attentions  # predict only on xs, and only after the prompt
+    
     def get_trainable_params(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
     
     def get_non_trainable_params(self):
         return sum(p.numel() for p in self.parameters() if not p.requires_grad)
+
+
+class PositionalWrap(torch.nn.Module):
+
+    def __init__(self, model: torch.nn.Module, addon_params: torch.Tensor):
+        super(PositionalWrap, self).__init__()
+        self.model = model
+        self.addon_params = addon_params
+        self.position_ids = None
+
+    def set_pos_ids(self, input_shape):
+        position_ids = torch.arange(0, input_shape[-1], dtype=torch.long)
+        self.position_ids = position_ids.unsqueeze(0).view(-1, input_shape[-1])
+
+    def forward(self, ids):
+        torch.cat((self.addon_params, self.model(self.position_ids)), dim=1)
+        
+
+class SoftPromptsOutsidePosition(nn.Module):
+
+    def __init__(self, transformer_model, conf):
+        super(SoftPromptsOutsidePosition, self).__init__()
+        self.transformer_model = transformer_model
+
+        self.prompt_dim = conf.prompt_dim
+        self.n_positions = conf.n_positions
+        self.n_dims = conf.n_dims
+        self.n_embd = self.transformer_model.n_embd
+        self.n_layer = self.transformer_model.n_layer
+        self.n_head = self.transformer_model.n_head
+        for param in self.transformer_model.parameters():
+            param.requires_grad = False
+
+        start_inputs = torch.rand((1,self.prompt_dim*2,1))
+        prompt = nn.Parameter(self.transformer_model._read_in(start_inputs)) # batch size, prompt dim * 2 (x and y), embedding dim, initialize with a possible actual input
+        self.fake_inputs = torch.zeros_like(prompt)
+
+        self.transformer_model._backbone.wpe = PositionalWrap(self.transformer_model._backbone.wpe, prompt)
+
+        self.name = f"gpt2-soft-prompt_embd={self.n_embd}_layer={self.n_layer}_head={self.n_head}"
+    
+    def forward(self, xs, ys, inds=None, output_attentions=False):
+        if inds is None:
+            inds = torch.arange(ys.shape[1])
+        else:
+            inds = torch.tensor(inds)
+            if max(inds) >= ys.shape[1] or min(inds) < 0:
+                raise ValueError("inds contain indices where xs and ys are not defined")
+        zs = self.transformer_model._combine(xs, ys)
+        embeds = self.transformer_model._read_in(zs)
+        self.transformer_model._backbone.wpe.set_pos_ids(embeds.size()[:-1])
+        fake_prompt = self.fake_inputs.repeat(xs.shape[0], 1, 1)
+        embeds = torch.cat((fake_prompt, embeds), dim=1)
+        output = self.transformer_model._backbone(inputs_embeds=embeds).last_hidden_state
+        prediction = self.transformer_model._read_out(output)
+        return prediction[:, self.prompt_dim*2::2, 0][:, inds]  # predict only on xs, and only after the prompt
+    
+    def get_trainable_params(self):
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+    
+    def get_non_trainable_params(self):
+        return sum(p.numel() for p in self.parameters() if not p.requires_grad)
+
     
 
 class SoftPromptsBackTransformerModel(nn.Module):
