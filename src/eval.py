@@ -206,7 +206,7 @@ def eval_model(
        - **sampler_kwargs: remaining arguments to pass directly to the sampler
     """
     assert num_eval_examples % batch_size == 0
-
+    num_eval_examples = 12800
     data_sampler = get_data_sampler(data_name, n_dims, **data_sampler_kwargs)
     task_sampler = get_task_sampler(
         task_name, n_dims, batch_size, **task_sampler_kwargs
@@ -243,6 +243,7 @@ def build_evals(conf):
         "batch_size": batch_size,
         "data_name": data_name,
         "prompting_strategy": "standard",
+        "task_sampler_kwargs" : conf.training.task_kwargs,
     }
 
     evaluation_kwargs = {}
@@ -332,7 +333,6 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
     except Exception:
         print("no metrics found")
         all_metrics = {}
-    print(evaluation_kwargs["standard"])
     standard_args = evaluation_kwargs["standard"]
     for i in range(4, 12):
         metrics = {}
@@ -344,9 +344,11 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
             if model.name in metrics and not recompute:
                 continue
             if standard_args["task_name"] == "chebyshev_kernel_linear_regression":
-                standard_args["task_sampler_kwargs"] = {"lowest_degree": i, "highest_degree":i, "basis_dim": i}
+                standard_args["task_sampler_kwargs"]["lowest_degree"] = i
+                standard_args["task_sampler_kwargs"]["highest_degree"] = i
+                standard_args["task_sampler_kwargs"]["basis_dim"] = i
             else:
-                standard_args["task_sampler_kwargs"] = {"degree": i,} # TODO: fix this]
+                standard_args["task_sampler_kwargs"]["degree"] = i # TODO: fix this]
             metrics[model.name] = eval_model(model, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing, **standard_args)
         all_metrics["degree-" + str(i)] = metrics
 
@@ -360,7 +362,7 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
 
 def get_run_metrics(
     run_path, run_path_2=None, run_path_3=None, step=-1, cache=True, skip_model_load=False, skip_baselines=False, include_noise=True, ground_truth_loss=False, smoothing=0):
-    model, conf = get_model_from_run(run_path, 100000)
+    model, conf = get_model_from_run(run_path, 1000000)
     model.name += "_soft_prompt"
     transformer_model = model.cuda().eval()
     evaluation_kwargs = build_evals(conf)

@@ -17,7 +17,7 @@ training:
     learning_rate: 0.00005
     save_every_steps: 1000
     keep_every_steps: 100000
-    train_steps: 100001
+    train_steps: 5000001
     curriculum:
         dims:
             start: 1
@@ -34,8 +34,8 @@ training:
             end: 3
             inc: 0
             interval: 500001
-
-out_dir: ../models/soft_prompting
+            
+out_dir: $WANBD_DIR/models/soft_prompting
 
 wandb:
     name: "chebyshev_linear_regression_toy"

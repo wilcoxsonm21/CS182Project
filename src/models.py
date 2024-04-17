@@ -184,7 +184,7 @@ class SoftPromptTransformerModel(nn.Module):
         self.n_head = self.transformer_model.n_head
         for param in self.transformer_model.parameters():
             param.requires_grad = False
-        start_inputs = torch.rand((1,self.prompt_dim*2,1))
+        start_inputs = torch.randn((1,self.prompt_dim*2,1))
         self.prompt = nn.Parameter(self.transformer_model._read_in(start_inputs)) # batch size, prompt dim * 2 (x and y), embedding dim, initialize with a possible actual input
         self.name = f"gpt2-soft-prompt_embd={self.n_embd}_layer={self.n_layer}_head={self.n_head}"
     
