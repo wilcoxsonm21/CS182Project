@@ -35,7 +35,7 @@ training:
             inc: 0
             interval: 500001
 
-out_dir: $WANBD_DIR/models/soft_prompting
+out_dir: /global/scratch/users/mwilcoxson/wandb/models/soft_prompting
 
 wandb:
     name: "chebyshev_linear_regression_toy"
