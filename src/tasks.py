@@ -127,6 +127,8 @@ def get_task_sampler(
         "kernel_linear_regression": ChebyshevKernelLinearRegression,
         "chebyshev_kernel_linear_regression": ChebyshevKernelLinearRegression,
         "polynomial_shared_roots": PolynomialSharedRoots,
+        "mixed_sliced_polynomial": MixedSlicedPolynomial,
+        "chebyshev_shared_roots": ChebychevSharedRoots
     }
     if task_name in task_names_to_classes:
         task_cls = task_names_to_classes[task_name]
@@ -185,7 +187,7 @@ class ChebyshevKernelLinearRegression(Task):
     def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, scale=1, basis_dim=1, different_degrees=False, lowest_degree=1, highest_degree=1, curriculum=None, degree=None):
         """scale: a constant by which to scale the randomly sampled weights."""
         assert basis_dim >= highest_degree, "Basis dimension must be greater than or equal to highest degree"
-        super(ChebyshevKernelLinearRegression, self).__init__(n_dims, batch_size, pool_dict, seeds) 
+        super(ChebyshevKernelLinearRegression, self).__init__(n_dims, batch_size, pool_dict, seeds)
         self.basis_dim = basis_dim 
         self.curriculum = curriculum
         self.highest_degree = highest_degree
@@ -221,6 +223,7 @@ class ChebyshevKernelLinearRegression(Task):
         self.w_b = (combinations @ self.chebyshev_coeffs).unsqueeze(2) # note if diff poly degree is false, then only generates basis dim degree polynomials 
 
     def evaluate(self, xs_b, noise=False, separate_noise=False, noise_variance=0.2):
+        #print("X-example: ", xs_b[0])
         expanded_basis = torch.zeros(*xs_b.shape[:-1], xs_b.shape[-1]*(self.basis_dim + 1))
         for i in range(self.basis_dim + 1): #we are also adding the constant term
             expanded_basis[..., i*xs_b.shape[-1]:(i+1)*xs_b.shape[-1]] = xs_b**i
@@ -237,6 +240,185 @@ class ChebyshevKernelLinearRegression(Task):
             else:
                 return ys_b
 
+    @staticmethod
+    def generate_pool_dict(n_dims, num_tasks, **kwargs):  # ignore extra args
+        return {"w": torch.randn(num_tasks, n_dims, 1)}
+
+    @staticmethod
+    def get_metric():
+        return squared_error
+
+    def get_training_loss(self):
+        return mean_squared_error
+    
+
+class ChebychevSharedRoots(Task):
+
+    def __init__(self, n_dims, batch_size, pool_dict=None, seeds=None, curriculum = None):
+        """scale: a constant by which to scale the randomly sampled weights."""
+        degree=5
+        perturbation=0.2
+        scaling_perc=0.3
+        super(ChebychevSharedRoots, self).__init__(n_dims, batch_size, pool_dict, seeds)
+
+        self.perturbation = perturbation
+        self.scaling_perc = scaling_perc
+        self.batch_size = batch_size
+        self._one_minus_one = torch.tensor([-1, 1])
+
+        k = torch.arange(1, degree + 1)
+        self.chebyshev_roots = torch.cos((2 * k - 1) * torch.pi / (2 * degree)).view(1, -1)
+        self.chebyshev_roots = torch.repeat_interleave(self.chebyshev_roots, batch_size, axis=0)
+    
+    def evaluate(self, xs_b: torch.Tensor, noise=False, separate_noise=False, noise_variance=0.2):
+
+        # Inside each batch, every x_point should be subtracted from each root
+        roots = self.chebyshev_roots + 2*self.perturbation*torch.rand(self.chebyshev_roots.shape) - self.perturbation
+        # (batch_size, x_points, different_roots)
+        roots = roots.unsqueeze(1).expand(-1, xs_b.shape[1], -1)
+        # (batch_size, different_points, repeated x_points)
+        xs_b = xs_b.expand(-1, -1, roots.shape[-1])
+
+        # Get values
+        poly_values = torch.prod(xs_b - roots, dim=2)
+
+        # Normalize values
+        poly_values = poly_values / torch.max(torch.abs(poly_values))
+
+        # Add some randomness to sign, and partially random scaling
+        max_per_sample = torch.max(torch.abs(poly_values), dim=1).values
+        poly_values = poly_values * self._one_minus_one[torch.randint(0, 2, (self.batch_size, 1))] * (self.scaling_perc * torch.rand((self.batch_size, 1)) + (1-self.scaling_perc))
+        ys_b = poly_values / max_per_sample.unsqueeze(1)
+
+        if noise and not separate_noise:
+            return ys_b + torch.sqrt(noise_variance) * torch.randn_like(ys_b)
+        elif noise and separate_noise:
+            return ys_b, torch.sqrt(noise_variance) * torch.randn_like(ys_b)
+        else:
+            if separate_noise:
+                return ys_b, torch.zeros_like(ys_b)
+            else:
+                return ys_b
+
+    @staticmethod
+    def generate_pool_dict(n_dims, num_tasks, **kwargs):  # ignore extra args
+        return {"w": torch.randn(num_tasks, n_dims, 1)}
+
+    @staticmethod
+    def get_metric():
+        return squared_error
+
+    def get_training_loss(self):
+        return mean_squared_error
+    
+class MixedSlicedPolynomial(Task):
+
+    def __init__(self, n_dims, batch_size, pool_dict = None, seeds = None, curriculum = None):
+        """
+        Creates a task where the output is several polynomials with shared roots, but concatenated at random intervals.
+        Lets you learn about the roots globally, while also learning about the local structure of the polynomials.
+
+        min_slices: minimum number of slices (cuts) to make in the x-axis
+        max_slices: maximum number of slices (cuts) to make in the x-axis
+        lowest_degree: lowest degree of polynomials to generate
+        highest_degree: highest degree of polynomials to generate
+        perturbation: how much to perturb the roots
+        scaling_perc: percentage of scaling to be random, remaining part of scaling is normalized
+        """
+        min_slices = 1
+        max_slices = 10
+        lowest_degree = 3
+        highest_degree = 11
+        perturbation=0.3
+        scaling_perc=0.9
+        super(MixedSlicedPolynomial, self).__init__(n_dims, batch_size, pool_dict, seeds)
+
+        self.min_slices = min_slices
+        self.max_slices = max_slices
+        self.batch_size = batch_size
+        self.perturbation = perturbation
+
+        self.lowest_degree = lowest_degree
+        self.highest_degree = highest_degree
+
+        self._one_minus_one = torch.tensor([-1, 1])
+        self.scaling_perc = scaling_perc
+
+        self.mask = torch.ones((highest_degree - lowest_degree + 1, highest_degree), dtype=torch.bool)
+        for i, degree in enumerate(range(lowest_degree, highest_degree + 1)):
+            self.mask[i][:degree] = 0
+        
+
+    def _random_interval_rearange_indexes(self, xs_b: torch.Tensor) -> torch.Tensor:
+
+        # Choose a random number of slices for each sample in the batch
+        slice_num = np.random.randint(self.min_slices, self.max_slices + 1, size=1)
+        rand_idxs = tuple(np.sort(np.random.choice(xs_b.shape[1], size=slice_num, replace=False)))
+
+        idx = torch.arange(0, xs_b.shape[1], 1)
+        idx_slices = torch.tensor_split(idx, rand_idxs)
+        #random.shuffle(idx_slices)
+        #idx = torch.cat(idx_slices, dim=0)
+
+        return idx, idx_slices
+
+    def evaluate(self, xs_b: torch.Tensor, noise=False, separate_noise=False, noise_variance=0.2):
+
+        """
+        xs_b: (batch_size, points)
+        """
+        # Rearange xs_b
+        idx, idx_slices = self._random_interval_rearange_indexes(xs_b)
+
+        # Create mask according to given degrees
+        degrees = torch.randint(low=0, high=self.highest_degree-self.lowest_degree+1, size=(self.batch_size,))
+        
+        #xs_b
+
+        # Perturb roots
+        # self.chebyshev_roots (batch_size, different_roots)
+        # chebychev_roots (batch_size, slices, different_roots)
+        roots = 2*torch.rand((xs_b.shape[0], 1, self.highest_degree)) - 1
+        perturb = 2*self.perturbation * torch.rand((xs_b.shape[0], len(idx_slices), self.highest_degree)) - self.perturbation
+        roots = roots + perturb
+
+        # (batch_size, slices, x_points, different_roots)
+        roots = roots.unsqueeze(2).expand(-1, -1, xs_b.shape[1], -1)
+        # (batch_size, slices, different_points, repeated x_points)
+        xs_b = xs_b.unsqueeze(1).expand(-1, len(idx_slices), -1, roots.shape[-1])
+
+        # current_mask (batch_size, slices, different_points, roots)
+        current_mask = self.mask[degrees, :].unsqueeze(1).unsqueeze(1).expand(-1, len(idx_slices), xs_b.shape[2], -1)
+
+        # Perform subtraction + mask and multiplication
+        vals = xs_b - roots
+        vals[current_mask] = 1
+        poly_values = torch.prod(vals, dim=3)
+
+        # Add some randomness to sign, and partially random scaling
+        poly_val_collection = []
+        for i, idx_slice in enumerate(idx_slices):
+            relevant_poly_values = poly_values[:, i, idx_slice]
+
+            if relevant_poly_values.shape[1] != 0:
+                max_val = torch.max(torch.abs(relevant_poly_values), dim=1).values
+                relevant_poly_values = relevant_poly_values * self._one_minus_one[torch.randint(0, 2, (self.batch_size, 1))] * (self.scaling_perc * torch.rand((self.batch_size, 1)) + (1-self.scaling_perc))
+                relevant_poly_values = relevant_poly_values / max_val.unsqueeze(1)
+            
+            poly_val_collection.append(relevant_poly_values)
+
+        ys_b = torch.cat(poly_val_collection, dim=1)
+
+        if noise and not separate_noise:
+            return ys_b + torch.sqrt(noise_variance) * torch.randn_like(ys_b)
+        elif noise and separate_noise:
+            return ys_b, torch.sqrt(noise_variance) * torch.randn_like(ys_b)
+        else:
+            if separate_noise:
+                return ys_b, torch.zeros_like(ys_b)
+            else:
+                return ys_b
+            
     @staticmethod
     def generate_pool_dict(n_dims, num_tasks, **kwargs):  # ignore extra args
         return {"w": torch.randn(num_tasks, n_dims, 1)}

@@ -15,6 +15,15 @@ from peft import LoraConfig, get_peft_model
 
 from base_models import NeuralNetwork, ParallelNetworks
 
+class EmptyLayer(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+        self.zero = torch.tensor([0], requires_grad=False)
+
+    def forward(self, x):
+        return self.zero
+
 def get_model_from_run(run_path, step=-1, only_conf=False, device="cuda"):
     config_path = os.path.join(run_path, "config.yaml")
     with open(config_path) as fp:  # we don't Quinfig it to avoid inherits
@@ -43,11 +52,23 @@ def build_model(conf, device="cuda"):
             n_layer=conf.n_layer,
             n_head=conf.n_head,
         )
+
+        #if not conf.positional_encoding:
+        #    model._backbone.wte = EmptyLayer()
+        #    model._backbone.wpe = EmptyLayer()
+
     elif conf.family == "gpt2-soft-prompt":
         transformer_model, _ = get_model_from_run(conf.pretrained_model_dir, device=device)
         model = SoftPromptTransformerModel(transformer_model, conf)
         print("SoftPrompt Non-tranaible parameters:", model.get_non_trainable_params())
         print("SoftPrompt Trainable parameters:", model.get_trainable_params(), "\n")
+
+    elif conf.family == "gpt2-soft-prompt-back":
+        transformer_model, _ = get_model_from_run(conf.pretrained_model_dir, device=device)
+        model = SoftPromptsBackTransformerModel(transformer_model, conf)
+        print("SoftPromptBack Non-tranaible parameters:", model.get_non_trainable_params())
+        print("SoftPromptBack Trainable parameters:", model.get_trainable_params(), "\n")
+
     elif conf.family == "gpt2-hard-prompt":
         transformer_model, _ = get_model_from_run(conf.pretrained_model_dir, device=device)
         model = HardPromptTransformerModel(transformer_model, conf)
@@ -175,14 +196,43 @@ class TransformerModel(nn.Module):
             inds = torch.tensor(inds)
             if max(inds) >= ys.shape[1] or min(inds) < 0:
                 raise ValueError("inds contain indices where xs and ys are not defined")
+            
         zs = self._combine(xs, ys)
         embeds = self._read_in(zs)
         output = self._backbone(inputs_embeds=embeds).last_hidden_state
         prediction = self._read_out(output)
         return prediction[:, ::2, 0][:, inds]  # predict only on xs
     
+    def attention_matrix(self, xs, ys):
 
-class LoraTransformerModel(nn.Module):
+        inds = torch.arange(ys.shape[1])
+
+        zs = self._combine(xs, ys)
+        embeds = self._read_in(zs)
+        output = self._backbone(inputs_embeds=embeds, output_attentions=True)
+        output_values = output.last_hidden_state # type: ignore
+        output_attentions = output.attentions
+        prediction = self._read_out(output_values)
+        return prediction[:, ::2, 0][:, inds], output_attentions  # predict only on xs
+    
+
+class TransformerModelWrapper(nn.Module):
+
+    def get_trainable_params(self):
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+    
+    def get_non_trainable_params(self):
+        return sum(p.numel() for p in self.parameters() if not p.requires_grad)
+    
+    @staticmethod
+    def _combine(xs_b, ys_b):
+        return TransformerModel._combine(xs_b, ys_b)
+    
+    def forward(self, xs, ys, inds=None):
+        return self.transformer_model(xs, ys, inds)
+    
+
+class LoraTransformerModel(TransformerModelWrapper):
 
     def __init__(self, transformer_model: TransformerModel, lora_config: LoraConfig):
         super(LoraTransformerModel, self).__init__()
@@ -199,19 +249,6 @@ class LoraTransformerModel(nn.Module):
         self.lora_config = lora_config
         self.transformer_model._backbone = get_peft_model(self.transformer_model._backbone, self.lora_config)
         self.name = f"gpt2-lora_embd={self.transformer_model.n_embd}_layer={self.transformer_model.n_layer}_head={self.transformer_model.n_head}"
-
-    def get_trainable_params(self):
-        return sum(p.numel() for p in self.parameters() if p.requires_grad)
-    
-    def get_non_trainable_params(self):
-        return sum(p.numel() for p in self.parameters() if not p.requires_grad)
-    
-    @staticmethod
-    def _combine(xs_b, ys_b):
-        return TransformerModel._combine(xs_b, ys_b)
-    
-    def forward(self, xs, ys, inds=None):
-        return self.transformer_model(xs, ys, inds)
     
 
 class SoftPromptTransformerModel(nn.Module):
@@ -230,7 +267,7 @@ class SoftPromptTransformerModel(nn.Module):
         self.prompt = nn.Parameter(self.transformer_model._read_in(start_inputs)) # batch size, prompt dim * 2 (x and y), embedding dim, initialize with a possible actual input
         self.name = f"gpt2-soft-prompt_embd={self.n_embd}_layer={self.n_layer}_head={self.n_head}"
     
-    def forward(self, xs, ys, inds=None):
+    def forward(self, xs, ys, inds=None, output_attentions=False):
         if inds is None:
             inds = torch.arange(ys.shape[1])
         else:
@@ -244,6 +281,65 @@ class SoftPromptTransformerModel(nn.Module):
         output = self.transformer_model._backbone(inputs_embeds=embeds).last_hidden_state
         prediction = self.transformer_model._read_out(output)
         return prediction[:, self.prompt_dim*2::2, 0][:, inds]  # predict only on xs, and only after the prompt
+    
+    def attention_matrix(self, xs, ys):
+
+        inds = torch.arange(ys.shape[1])
+
+        zs = self.transformer_model._combine(xs, ys)
+        embeds = self.transformer_model._read_in(zs)
+        prompt = self.prompt.repeat(xs.shape[0], 1, 1)
+        embeds = torch.cat((prompt, embeds), dim=1)
+        output = self.transformer_model._backbone(inputs_embeds=embeds, output_attentions=True)
+        output_vals = output.last_hidden_state
+        prediction = self.transformer_model._read_out(output_vals)
+        return prediction[:, self.prompt_dim*2::2, 0][:, inds], output.attentions  # predict only on xs, and only after the prompt
+    
+    def get_trainable_params(self):
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+    
+    def get_non_trainable_params(self):
+        return sum(p.numel() for p in self.parameters() if not p.requires_grad)
+
+    
+
+class SoftPromptsBackTransformerModel(nn.Module):
+    def __init__(self, transformer_model, conf):
+        super(SoftPromptsBackTransformerModel, self).__init__()
+        self.transformer_model = transformer_model
+        self.prompt_dim = conf.prompt_dim
+        self.n_positions = conf.n_positions
+        self.n_dims = conf.n_dims
+        self.n_embd = self.transformer_model.n_embd
+        self.n_layer = self.transformer_model.n_layer
+        self.n_head = self.transformer_model.n_head
+        for param in self.transformer_model.parameters():
+            param.requires_grad = False
+        start_inputs = torch.rand((1,self.prompt_dim*2,1))
+        self.prompt = nn.Parameter(self.transformer_model._read_in(start_inputs)) # batch size, prompt dim * 2 (x and y), embedding dim, initialize with a possible actual input
+        self.name = f"gpt2-soft-prompt_back_embd={self.n_embd}_layer={self.n_layer}_head={self.n_head}"
+    
+    def forward(self, xs, ys, inds=None):
+        """
+        Have the prompts in the middle
+        """
+
+        half_embed_length = ys.shape[1]
+
+        if inds is None:
+            inds = torch.arange(ys.shape[1])
+        else:
+            inds = torch.tensor(inds)
+            if max(inds) >= ys.shape[1] or min(inds) < 0:
+                raise ValueError("inds contain indices where xs and ys are not defined")
+        zs = self.transformer_model._combine(xs, ys)
+        embeds = self.transformer_model._read_in(zs)
+
+        prompt = self.prompt.repeat(xs.shape[0], 1, 1)
+        embeds = torch.cat((embeds[:, :half_embed_length], prompt, embeds[:, -half_embed_length:]), dim=1)
+        output = self.transformer_model._backbone(inputs_embeds=embeds).last_hidden_state
+        prediction = self.transformer_model._read_out(output)
+        return torch.cat((prediction[:, :half_embed_length:2, 0], prediction[:, -half_embed_length::2, 0]), dim=1)[:, inds]  # predict only on xs, and only after the prompt
     
     def get_trainable_params(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)

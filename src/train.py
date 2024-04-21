@@ -1,8 +1,11 @@
 import os
+from pathlib import Path
 from random import randint
+from typing import List
 import uuid
+import argparse
 
-from quinine import QuinineArgumentParser
+from quinine import Quinfig, QuinineArgumentParser
 from tqdm import tqdm
 import torch
 import yaml
@@ -14,7 +17,13 @@ from curriculum import Curriculum
 from schema import schema
 from models import build_model
 
+import model_utils
+from types import SimpleNamespace
+
 import wandb
+
+
+from box import Box
 
 torch.backends.cudnn.benchmark = True
 
@@ -36,7 +45,8 @@ def sample_seeds(total_seeds, count):
     return seeds
 
 
-def train(model, args):
+def train(model, args, device="cuda"):
+
     optimizer = torch.optim.Adam(model.parameters(), lr=args.training.learning_rate)
     curriculum = Curriculum(args.training.curriculum)
 
@@ -87,11 +97,11 @@ def train(model, args):
         ys = task.evaluate(xs)
 
 
-        loss, output = train_step(model, xs.cuda(), ys.cuda(), optimizer, task)
+        loss, output = train_step(model, xs.to(device), ys.to(device), optimizer, task)
 
         point_wise_tags = list(range(curriculum.n_points))
         point_wise_loss_func = task.get_metric()
-        point_wise_loss = point_wise_loss_func(output, ys.cuda()).mean(dim=0)
+        point_wise_loss = point_wise_loss_func(output, ys.to(device)).mean(dim=0)
 
         baseline_loss = (
             sum(
@@ -101,7 +111,7 @@ def train(model, args):
             / curriculum.n_points
         )
 
-        if i % args.wandb.log_every_steps == 0 and not args.test_run:
+        if i % args.wandb.log_every_steps == 0:
             wandb.log(
                 {
                     "overall_loss": loss,
@@ -118,7 +128,7 @@ def train(model, args):
         curriculum.update()
 
         pbar.set_description(f"loss {loss}")
-        if i % args.training.save_every_steps == 0 and not args.test_run:
+        if i % args.training.save_every_steps == 0:
             training_state = {
                 "model_state_dict": model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
@@ -129,56 +139,109 @@ def train(model, args):
         if (
             args.training.keep_every_steps > 0
             and i % args.training.keep_every_steps == 0
-            and not args.test_run
             and i > 0
         ):
             torch.save(model.state_dict(), os.path.join(args.out_dir, f"model_{i}.pt"))
 
 
-def main(args):
-    if args.test_run:
-        curriculum_args = args.training.curriculum
-        curriculum_args.points.start = curriculum_args.points.end
-        curriculum_args.dims.start = curriculum_args.dims.end
-        args.training.train_steps = 100
-    else:
-        wandb.init(
-            dir=args.out_dir,
-            project=args.wandb.project,
-            entity=args.wandb.entity,
-            config=args.__dict__,
-            notes=args.wandb.notes,
-            name=args.wandb.name,
-            resume=True,
-        )
+def main(args, device="cuda", wandb_mode="online"):
+    wandb.init(
+        dir=args.out_dir,
+        project=args.wandb.project,
+        entity=args.wandb.entity,
+        config=args.__dict__,
+        notes=args.wandb.notes,
+        name=args.wandb.name,
+        resume=True,
+        mode=wandb_mode,
+    )
 
-    model = build_model(args.model)
-    model.cuda()
+    model = build_model(args.model, device=device)
+    model.to(device)
     model.train()
 
-    train(model, args)
+    train(model, args, device=device)
+
+    wandb.finish()
 
     #if not args.test_run:
     #    _ = get_run_metrics(args.out_dir, step=4000, include_noise=False)  # precompute metrics for eval
 
 
+def load_and_train(conf: dict, device="cuda", wandb_mode="online") -> str:
+
+    conf, out_dir = model_utils.conf_prepare_output_dir(conf)
+    main(conf, device=device, wandb_mode=wandb_mode)
+
+    return out_dir
+
+def train_mulitple_soft_prompts(base_model_dir: Path, prompt_conf: Box, soft_prompt_dims: List, device="cuda", wandb_mode="online"):
+
+    for prompt_dim in soft_prompt_dims:
+
+        prompt_conf_copy = prompt_conf.copy()
+
+        prompt_conf_copy.model.prompt_dim = prompt_dim
+        prompt_conf_copy.wandb.name = "prompt_dim_" + str(prompt_dim)
+        prompt_conf_copy.training.resume_id = "prompt_dim_" + str(prompt_dim)
+        prompt_conf_copy.model.pretrained_model_dir = str(base_model_dir)
+
+        prompt_dir = load_and_train(prompt_conf_copy, device=device, wandb_mode=wandb_mode)
+
+        print(f"Finished training prompt model with prompt dim {prompt_dim}, and saved to {prompt_dir}")
+
+
 if __name__ == "__main__":
-    parser = QuinineArgumentParser(schema=schema)
-    args = parser.parse_quinfig()
-    assert args.model.family in ["gpt2", "lstm", "gpt2-soft-prompt", "gpt2-hard-prompt", "gpt2-lora"]
-    print(f"Running with: {args}")
 
-    if not args.test_run:
-        run_id = args.training.resume_id
-        if run_id is None:
-            run_id = str(uuid.uuid4())
+    device = "cuda" #"cuda" if torch.cuda.is_available() else "cpu"
+    wandb_mode = "online" # online, offline, disabled
 
-        out_dir = os.path.join(args.out_dir, run_id)
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-        args.out_dir = out_dir
+    #Try me
+    #prompt_conf = model_utils.load_config("conf/prompting.yaml")
+    #prompt_conf = model_utils.load_config("conf/big_prompting_shared_outside.yaml")
+    #load_and_train(prompt_conf, device=device, wandb_mode=wandb_mode)
 
-        with open(os.path.join(out_dir, "config.yaml"), "w") as yaml_file:
-            yaml.dump(args.__dict__, yaml_file, default_flow_style=False)
+    conf = model_utils.load_config("conf/mixed_sliced_polynomial.yaml")
+    out_dir = load_and_train(conf, device=device, wandb_mode=wandb_mode)
 
-    main(args)
+    prompt_conf = model_utils.load_config("conf/mixed_sliced_polynomial_prompting.yaml")
+    prompt_conf.model.pretrained_model_dir = str(out_dir)
+    load_and_train(prompt_conf, device=device, wandb_mode=wandb_mode)
+
+    #base_model_dir = Path("../models/kernel_linear_regression/bigger_model")
+
+    # Train special back with 50 in middle
+    #prompt_conf = model_utils.load_config("conf/prompting_small_back.yaml")
+    #base_model_dir = Path("../models/kernel_linear_regression/bigger_model")
+    #train_mulitple_soft_prompts(base_model_dir, prompt_conf, [11, 21, 31, 41], device=device, wandb_mode=wandb_mode)
+
+    # Train model on soft_prompts in front
+    """prompt_conf = model_utils.load_config("conf/prompting_front.yaml")
+    base_model_dir = Path("../models/kernel_linear_regression/bigger_model")
+    train_mulitple_soft_prompts(base_model_dir, prompt_conf, [50, 60, 70, 80, 90, 100], device=device, wandb_mode=wandb_mode)
+
+    # Train model on soft_prompts in back
+    prompt_conf = model_utils.load_config("conf/prompting_back.yaml")
+    base_model_dir = Path("../models/kernel_linear_regression/bigger_model")
+    train_mulitple_soft_prompts(base_model_dir, prompt_conf, [49, 59, 69, 79, 89, 99], device=device, wandb_mode=wandb_mode)
+
+    # Train model without positional encoding and wothout noise, do soft prompting afterwards
+    base_conf = model_utils.load_config("conf/base_model_nopos_nonoise.yaml")
+    prompt_conf = model_utils.load_config("conf/prompting_nopos_nonoise.yaml")
+
+    base_model_dir = load_and_train(base_conf, device=device, wandb_mode=wandb_mode)
+    print(f"Finished training base model, and saved to {base_model_dir}")
+
+    train_mulitple_soft_prompts(base_model_dir, prompt_conf, [50, 60, 70, 80, 90, 100], device=device, wandb_mode=wandb_mode)
+
+    # Train model with positional encoding and noise, do soft prompting afterwards
+    base_conf = model_utils.load_config("conf/base_model.yaml")
+    prompt_conf = model_utils.load_config("conf/prompting_noise.yaml")
+
+    base_model_dir = load_and_train(base_conf, device=device, wandb_mode=wandb_mode)
+    print(f"Finished training base model, and saved to {base_model_dir}")
+
+    train_mulitple_soft_prompts(base_model_dir, prompt_conf, [50, 60, 70, 80, 90, 100], device=device, wandb_mode=wandb_mode)"""
+
+
+    
