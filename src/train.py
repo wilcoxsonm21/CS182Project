@@ -193,20 +193,39 @@ def train_mulitple_soft_prompts(base_model_dir: Path, prompt_conf: Box, soft_pro
 
 if __name__ == "__main__":
 
-    device = "cuda" #"cuda" if torch.cuda.is_available() else "cpu"
-    wandb_mode = "online" # online, offline, disabled
+    device = "cpu" #"cuda" if torch.cuda.is_available() else "cpu"
+    wandb_mode = "offline" # online, offline, disabled
+
+    # Check when prompting breaks
+    prompt_conf = model_utils.load_config("conf/prompting_front.yaml")
+    base_model_dir = Path("../models/kernel_linear_regression/bigger_model")
+    train_mulitple_soft_prompts(base_model_dir, prompt_conf, [60, 70, 80, 90, 100], device=device, wandb_mode=wandb_mode)
+
+    # Check if prompting is as good as lora when training for long
+    prompt_conf = model_utils.load_config("conf/prompting_front.yaml")
+    prompt_conf.training.train_steps = 3000000
+    train_mulitple_soft_prompts(base_model_dir, prompt_conf, [50], device=device, wandb_mode=wandb_mode)
+
+    # Train model without positional encodings, and try 100 soft prompts on it
+    base_conf = model_utils.load_config("conf/base_model_nopos.yaml")
+    prompt_conf = model_utils.load_config("conf/prompting_nopos.yaml")
+    base_model_dir = load_and_train(base_conf, device=device, wandb_mode=wandb_mode)
+    print(f"Finished training base model, and saved to {base_model_dir}")
+    train_mulitple_soft_prompts(base_model_dir, prompt_conf, [100], device=device, wandb_mode=wandb_mode)
+
+
 
     #Try me
     #prompt_conf = model_utils.load_config("conf/prompting.yaml")
     #prompt_conf = model_utils.load_config("conf/big_prompting_shared_outside.yaml")
     #load_and_train(prompt_conf, device=device, wandb_mode=wandb_mode)
 
-    conf = model_utils.load_config("conf/mixed_sliced_polynomial.yaml")
-    out_dir = load_and_train(conf, device=device, wandb_mode=wandb_mode)
+    #conf = model_utils.load_config("conf/mixed_sliced_polynomial.yaml")
+    #out_dir = load_and_train(conf, device=device, wandb_mode=wandb_mode)
 
-    prompt_conf = model_utils.load_config("conf/mixed_sliced_polynomial_prompting.yaml")
-    prompt_conf.model.pretrained_model_dir = str(out_dir)
-    load_and_train(prompt_conf, device=device, wandb_mode=wandb_mode)
+    #prompt_conf = model_utils.load_config("conf/mixed_sliced_polynomial_prompting.yaml")
+    #prompt_conf.model.pretrained_model_dir = str(out_dir)
+    #load_and_train(prompt_conf, device=device, wandb_mode=wandb_mode)
 
     #base_model_dir = Path("../models/kernel_linear_regression/bigger_model")
 

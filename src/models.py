@@ -53,9 +53,10 @@ def build_model(conf, device="cuda"):
             n_head=conf.n_head,
         )
 
-        #if not conf.positional_encoding:
-        #    model._backbone.wte = EmptyLayer()
-        #    model._backbone.wpe = EmptyLayer()
+        if not conf.positional_encoding:
+            print("NO POSITIONAL ENCODINGS!!!!!!!!!!!!!!!!!!!!!")
+            model._backbone.wte = EmptyLayer()
+            model._backbone.wpe = EmptyLayer()
 
     elif conf.family == "gpt2-soft-prompt":
         transformer_model, _ = get_model_from_run(conf.pretrained_model_dir, device=device)
