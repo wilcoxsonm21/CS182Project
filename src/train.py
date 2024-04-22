@@ -202,16 +202,16 @@ if __name__ == "__main__":
     train_mulitple_soft_prompts(base_model_dir, prompt_conf, [60, 70, 80, 90, 100], device=device, wandb_mode=wandb_mode)
 
     # Check if prompting is as good as lora when training for long
-    prompt_conf = model_utils.load_config("conf/prompting_front.yaml")
-    prompt_conf.training.train_steps = 3000000
-    train_mulitple_soft_prompts(base_model_dir, prompt_conf, [50], device=device, wandb_mode=wandb_mode)
+    #prompt_conf = model_utils.load_config("conf/prompting_front.yaml")
+    #prompt_conf.training.train_steps = 3000000
+    #train_mulitple_soft_prompts(base_model_dir, prompt_conf, [50], device=device, wandb_mode=wandb_mode)
 
     # Train model without positional encodings, and try 100 soft prompts on it
-    base_conf = model_utils.load_config("conf/base_model_nopos.yaml")
-    prompt_conf = model_utils.load_config("conf/prompting_nopos.yaml")
-    base_model_dir = load_and_train(base_conf, device=device, wandb_mode=wandb_mode)
-    print(f"Finished training base model, and saved to {base_model_dir}")
-    train_mulitple_soft_prompts(base_model_dir, prompt_conf, [100], device=device, wandb_mode=wandb_mode)
+    #base_conf = model_utils.load_config("conf/base_model_nopos.yaml")
+    #prompt_conf = model_utils.load_config("conf/prompting_nopos.yaml")
+    #base_model_dir = load_and_train(base_conf, device=device, wandb_mode=wandb_mode)
+    #print(f"Finished training base model, and saved to {base_model_dir}")
+    #train_mulitple_soft_prompts(base_model_dir, prompt_conf, [100], device=device, wandb_mode=wandb_mode)
 
 
 
