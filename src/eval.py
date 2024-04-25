@@ -346,8 +346,13 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
         for model in baselines:
             if model.name in metrics and not recompute:
                 continue
-            standard_args["task_sampler_kwargs"] = {"degree": i,} # TODO: fix this]
-            metrics[model.name] = eval_model(model, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing, device=device, **standard_args)
+            if standard_args["task_name"] == "chebyshev_kernel_linear_regression":
+                standard_args["task_sampler_kwargs"]["lowest_degree"] = i
+                standard_args["task_sampler_kwargs"]["highest_degree"] = i
+                standard_args["task_sampler_kwargs"]["basis_dim"] = i
+            else:
+                standard_args["task_sampler_kwargs"]["degree"] = i # TODO: fix this]
+            metrics[model.name] = eval_model(model, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing, **standard_args)
         all_metrics["degree-" + str(i)] = metrics
 
     if save_path is not None:

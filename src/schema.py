@@ -54,6 +54,7 @@ TASK_LIST = [
     "relu_2nn_regression",
     "decision_tree",
     "polynomial_shared_roots",
+    "chebyshev_kernel_linear_regression"
 ]
 
 training_schema = {

@@ -226,7 +226,7 @@ class SoftPromptTransformerModel(nn.Module):
         self.n_head = self.transformer_model.n_head
         for param in self.transformer_model.parameters():
             param.requires_grad = False
-        start_inputs = torch.rand((1,self.prompt_dim*2,1))
+        start_inputs = torch.randn((1,self.prompt_dim*2,1))
         self.prompt = nn.Parameter(self.transformer_model._read_in(start_inputs)) # batch size, prompt dim * 2 (x and y), embedding dim, initialize with a possible actual input
         self.name = f"gpt2-soft-prompt_embd={self.n_embd}_layer={self.n_layer}_head={self.n_head}"
     
@@ -264,7 +264,13 @@ class HardPromptTransformerModel(nn.Module):
         self.n_head = self.transformer_model.n_head
         for param in self.transformer_model.parameters():
             param.requires_grad = False
-        start_inputs = torch.rand((1,self.prompt_dim*2,1))
+        degree = 5 #TODO: Avoid hard coding
+        import numpy as np
+        k = np.arange(1, degree + 1)
+        chebyshev_roots = np.cos((2 * k - 1) * np.pi / (2 * degree))
+        chebyshev_roots = np.sort(chebyshev_roots)
+        start_inputs = torch.tensor([[chebyshev_roots[0]], [0], [chebyshev_roots[1]], [0]]).type(torch.FloatTensor)
+        print(start_inputs)
         self.prompt = nn.Parameter(start_inputs) # batch size, prompt dim * 2 (x and y), 1, initialize with a possible actual input (this is a hard prompt now)
         self.name = f"gpt2-hard-prompt_embd={self.n_embd}_layer={self.n_layer}_head={self.n_head}"
     
