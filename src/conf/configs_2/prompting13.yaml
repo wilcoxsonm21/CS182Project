@@ -4,10 +4,10 @@ inherit:
 model:
   n_dims: 1
   n_positions: 41
-  pretrained_model_dir: ../models/soft_prompting_comparisons_long_training/94b3dfa0-5817-4bbf-bc34-5d80b75e2b4e
+  pretrained_model_dir: /global/scratch/users/mwilcoxson/wandb/models/soft_prompting/94b3dfa0-5817-4bbf-bc34-5d80b75e2b4e
   prompt_dim: 2
   steps: 1700000
-out_dir: /global/scratch/users/mwilcoxson/wandb/models/soft_prompting
+out_dir: /global/scratch/users/mwilcoxson/wandb/models/soft_prompting_2
 training:
   batch_size: 64
   curriculum:
