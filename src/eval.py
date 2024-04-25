@@ -362,7 +362,7 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
 
 def get_run_metrics(
     run_path, run_path_2=None, run_path_3=None, step=-1, cache=True, skip_model_load=False, skip_baselines=False, include_noise=True, ground_truth_loss=False, smoothing=0):
-    model, conf = get_model_from_run(run_path, 1000000)
+    model, conf = get_model_from_run(run_path, 1700000)
     model.name += "_soft_prompt"
     transformer_model = model.cuda().eval()
     evaluation_kwargs = build_evals(conf)
