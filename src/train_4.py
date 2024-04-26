@@ -17,8 +17,6 @@ from curriculum import Curriculum
 from schema import schema
 from models import build_model
 
-import model_utils
-from types import SimpleNamespace
 
 import wandb
 
@@ -182,4 +180,4 @@ if __name__ == "__main__":
         with open(os.path.join(out_dir, "config.yaml"), "w") as yaml_file:
             yaml.dump(args.__dict__, yaml_file, default_flow_style=False)
 
-    main(args, device="cpu", wandb_mode="disabled")
+    main(args, device="cuda", wandb_mode="online")
