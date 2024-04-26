@@ -15,6 +15,15 @@ from peft import LoraConfig, get_peft_model
 
 from base_models import NeuralNetwork, ParallelNetworks
 
+class EmptyLayer(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+        self.zero = torch.tensor([0], requires_grad=False)
+
+    def forward(self, x):
+        return self.zero
+
 def get_model_from_run(run_path, step=-1, only_conf=False, device="cuda"):
     config_path = os.path.join(run_path, "config.yaml")
     with open(config_path) as fp:  # we don't Quinfig it to avoid inherits
@@ -43,6 +52,15 @@ def build_model(conf, device="cuda"):
             n_layer=conf.n_layer,
             n_head=conf.n_head,
         )
+
+        try:
+            if not conf.positional_encoding:
+                print("NO POSITIONAL ENCODINGS!!!!!!!!!!!!!!!!!!!!!")
+                model._backbone.wte = EmptyLayer()
+                model._backbone.wpe = EmptyLayer()
+        except:
+            pass
+
     elif conf.family == "gpt2-soft-prompt":
         if "steps" in conf:
             model, _ = get_model_from_run(conf.pretrained_model_dir, step=conf.steps, device=device)
