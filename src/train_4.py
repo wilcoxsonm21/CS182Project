@@ -159,6 +159,9 @@ def main(args, device="cuda", wandb_mode="online"):
     wandb.finish()
 
 if __name__ == "__main__":
+
+
+    
     parser = QuinineArgumentParser(schema=schema)
     args = parser.parse_quinfig()
     assert args.model.family in ["gpt2", "lstm", "gpt2-soft-prompt", "gpt2-hard-prompt", "gpt2-lora"]
