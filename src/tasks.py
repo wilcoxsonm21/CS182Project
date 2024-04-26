@@ -215,7 +215,6 @@ class ChebyshevKernelLinearRegression(Task):
             mask = torch.ones(combinations.shape[0], combinations.shape[-1], dtype=torch.float32)
             if curriculum:
                 self.highest_degree = curriculum.highest_degree
-            print("HIGHEST DEGREE: ", self.highest_degree)
             indices = torch.randint(self.lowest_degree, self.highest_degree + 1, (combinations.shape[0], 1))    # Note the dimensions
             self.indices = indices
             mask[torch.arange(0, combinations.shape[-1], dtype=torch.float32).repeat(combinations.shape[0],1) >= indices] = 0
