@@ -17,9 +17,9 @@ from base_models import NeuralNetwork, ParallelNetworks
 
 class EmptyLayer(nn.Module):
 
-    def __init__(self):
+    def __init__(self, device="cuda"):
         super().__init__()
-        self.zero = torch.tensor([0], requires_grad=False)
+        self.zero = torch.tensor([0], requires_grad=False).to(device)
 
     def forward(self, x):
         return self.zero
