@@ -20,9 +20,6 @@ from models import build_model
 
 import wandb
 
-
-from box import Box
-
 torch.backends.cudnn.benchmark = True
 
 
