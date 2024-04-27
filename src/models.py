@@ -15,6 +15,15 @@ from peft import LoraConfig, get_peft_model
 
 from base_models import NeuralNetwork, ParallelNetworks
 
+class EmptyLayer(nn.Module):
+
+    def __init__(self, device="cuda"):
+        super().__init__()
+        self.zero = torch.tensor([0], requires_grad=False).to(device)
+
+    def forward(self, x):
+        return self.zero
+
 def get_model_from_run(run_path, step=-1, only_conf=False, device="cuda"):
     config_path = os.path.join(run_path, "config.yaml")
     with open(config_path) as fp:  # we don't Quinfig it to avoid inherits
@@ -35,6 +44,9 @@ def get_model_from_run(run_path, step=-1, only_conf=False, device="cuda"):
     return model, conf
 
 def build_model(conf, device="cuda"):
+
+    model = None
+
     if conf.family == "gpt2":
         if "steps" in conf:
             model, _ = get_model_from_run(conf.pretrained_model_dir, step=conf.steps, device=device)
@@ -67,6 +79,16 @@ def build_model(conf, device="cuda"):
         #print(model)
     else:
         raise NotImplementedError
+    
+    if conf.family == "gpt2" and not conf.positional_encodings:
+        print("NO POSITIONAL ENCODINGS!!!!!!!!!!!!!!!!!!!!!")
+        model._backbone.wte = EmptyLayer()
+        model._backbone.wpe = EmptyLayer()
+
+    elif not conf.positional_encodings:
+        print("NO POSITIONAL ENCODINGS!!!!!!!!!!!!!!!!!!!!!")
+        model.transformer_model._backbone.wte = EmptyLayer()
+        model.transformer_model._backbone.wpe = EmptyLayer()
 
     return model
 

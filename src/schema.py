@@ -24,6 +24,7 @@ model_schema = {
     "prompt_dim": merge(tinteger, nullable, default(None)),
     "pretrained_model_dir": merge(tstring, nullable, default(None)),
     "steps": merge(tinteger, nullable, default(-1)),
+    "positional_encodings": merge(tboolean, default(True)),
     "lora_config":
         merge(stdict({
             "r": merge(tinteger, nullable),
