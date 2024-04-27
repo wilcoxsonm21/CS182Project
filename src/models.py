@@ -36,13 +36,16 @@ def get_model_from_run(run_path, step=-1, only_conf=False, device="cuda"):
 
 def build_model(conf, device="cuda"):
     if conf.family == "gpt2":
-        model = TransformerModel(
-            n_dims=conf.n_dims,
-            n_positions=conf.n_positions,
-            n_embd=conf.n_embd,
-            n_layer=conf.n_layer,
-            n_head=conf.n_head,
-        )
+        if "steps" in conf:
+            model, _ = get_model_from_run(conf.pretrained_model_dir, step=conf.steps, device=device)
+        else:
+            model = TransformerModel(
+                n_dims=conf.n_dims,
+                n_positions=conf.n_positions,
+                n_embd=conf.n_embd,
+                n_layer=conf.n_layer,
+                n_head=conf.n_head,
+            )
     elif conf.family == "gpt2-soft-prompt":
         if "steps" in conf:
             model, _ = get_model_from_run(conf.pretrained_model_dir, step=conf.steps, device=device)
