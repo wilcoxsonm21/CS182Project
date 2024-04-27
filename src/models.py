@@ -48,7 +48,7 @@ def build_model(conf, device="cuda"):
     model = None
 
     if conf.family == "gpt2":
-        if "steps" in conf:
+        if conf["steps"] is not None:
             model, _ = get_model_from_run(conf.pretrained_model_dir, step=conf.steps, device=device)
         else:
             model = TransformerModel(
@@ -59,7 +59,7 @@ def build_model(conf, device="cuda"):
                 n_head=conf.n_head,
             )
     elif conf.family == "gpt2-soft-prompt":
-        if "steps" in conf:
+        if conf["steps"] is not None:
             model, _ = get_model_from_run(conf.pretrained_model_dir, step=conf.steps, device=device)
             print("SoftPrompt Non-tranaible parameters:", model.get_non_trainable_params())
             print("SoftPrompt Trainable parameters:", model.get_trainable_params(), "\n")
@@ -80,15 +80,15 @@ def build_model(conf, device="cuda"):
     else:
         raise NotImplementedError
     
-    if conf.family == "gpt2" and not conf.positional_encodings:
-        print("NO POSITIONAL ENCODINGS!!!!!!!!!!!!!!!!!!!!!")
-        model._backbone.wte = EmptyLayer()
-        model._backbone.wpe = EmptyLayer()
+    #if conf.family == "gpt2" and not conf.positional_encodings:
+    #    print("NO POSITIONAL ENCODINGS!!!!!!!!!!!!!!!!!!!!!")
+    #    model._backbone.wte = EmptyLayer()
+    #    model._backbone.wpe = EmptyLayer()
 
-    elif not conf.positional_encodings:
-        print("NO POSITIONAL ENCODINGS!!!!!!!!!!!!!!!!!!!!!")
-        model.transformer_model._backbone.wte = EmptyLayer()
-        model.transformer_model._backbone.wpe = EmptyLayer()
+    #elif not conf.positional_encodings:
+    #    print("NO POSITIONAL ENCODINGS!!!!!!!!!!!!!!!!!!!!!")
+    #    model.transformer_model._backbone.wte = EmptyLayer()
+    #    model.transformer_model._backbone.wpe = EmptyLayer()
 
     return model
 
