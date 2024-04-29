@@ -57,15 +57,15 @@ def build_model(conf, device="cuda"):
         )
 
     elif conf.family == "gpt2-soft-prompt":
-        if "steps" in conf:
-            model, _ = get_model_from_run(conf.pretrained_model_dir, step=conf.steps, device=device)
-            print("SoftPrompt Non-tranaible parameters:", model.get_non_trainable_params())
-            print("SoftPrompt Trainable parameters:", model.get_trainable_params(), "\n")
-        else:    
-            transformer_model, _ = get_model_from_run(conf.pretrained_model_dir, device=device)
-            model = SoftPromptTransformerModel(transformer_model, conf)
-            print("SoftPrompt Non-tranaible parameters:", model.get_non_trainable_params())
-            print("SoftPrompt Trainable parameters:", model.get_trainable_params(), "\n")
+        #if "steps" in conf:
+        #    model, _ = get_model_from_run(conf.pretrained_model_dir, step=conf.steps, device=device)
+        #   print("SoftPrompt Non-tranaible parameters:", model.get_non_trainable_params())
+        #    print("SoftPrompt Trainable parameters:", model.get_trainable_params(), "\n")
+        #else:    
+        transformer_model, _ = get_model_from_run(conf.pretrained_model_dir, device=device)
+        model = SoftPromptTransformerModel(transformer_model, conf)
+        print("SoftPrompt Non-tranaible parameters:", model.get_non_trainable_params())
+        print("SoftPrompt Trainable parameters:", model.get_trainable_params(), "\n")
     elif conf.family == "gpt2-hard-prompt":
         transformer_model, _ = get_model_from_run(conf.pretrained_model_dir, device=device)
         model = HardPromptTransformerModel(transformer_model, conf)
