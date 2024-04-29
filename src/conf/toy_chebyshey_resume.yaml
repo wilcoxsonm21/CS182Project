@@ -5,7 +5,7 @@ inherit:
 model:
     n_dims: 1
     n_positions: 131
-    pretrained_model_dir: /global/scratch/users/mwilcoxson/wandb/models/kernel_linear_regression/c0fffde9-ee15-429c-a1f1-e89985f35037
+    pretrained_model_dir: ../models/kernel_linear_regression/c0fffde9-ee15-429c-a1f1-e89985f35037
     steps: 1400000
 
 training:
@@ -41,7 +41,7 @@ training:
             inc: 0
             interval: 500001
 
-out_dir: /global/scratch/users/mwilcoxson/wandb/models/kernel_linear_regression_2
+out_dir: ../models/kernel_linear_regression_2
 
 wandb:
     name: "chebyshev_linear_regression_toy"

@@ -3,11 +3,10 @@ inherit:
 - wandb.yaml
 model:
   n_dims: 1
-  n_positions: 41
-  pretrained_model_dir: /global/scratch/users/mwilcoxson/wandb/models/soft_prompting/d0da5a49-0913-45f0-8e5e-647b7232e833
-  prompt_dim: 2
-  steps: 1700000
-out_dir: /global/scratch/users/mwilcoxson/wandb/models/soft_prompting_2
+  n_positions: 131
+  pretrained_model_dir: /global/scratch/users/mwilcoxson/wandb/models/kernel_linear_regression_2/c8a12fe0-218e-4fdc-a29b-6eab36983e39
+  prompt_dim: 50
+out_dir: /global/scratch/users/mwilcoxson/wandb/models/soft_prompting_3_2
 training:
   batch_size: 64
   curriculum:
@@ -37,6 +36,6 @@ training:
     highest_degree: 5
     lowest_degree: 5
     scale: 2.0
-  train_steps: 3300000
+  train_steps: 2000000
 wandb:
   name: chebyshev_linear_regression_toy
