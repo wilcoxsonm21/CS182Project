@@ -5,6 +5,8 @@ inherit:
 model:
     n_dims: 1
     n_positions: 131
+    pretrained_model_dir: ../models/kernel_linear_regression/c0fffde9-ee15-429c-a1f1-e89985f35037
+    steps: 1400000
 
 training:
     task: chebyshev_kernel_linear_regression
@@ -21,7 +23,7 @@ training:
     learning_rate: 0.00005
     save_every_steps: 1000
     keep_every_steps: 100000
-    train_steps: 5000001
+    train_steps: 1600000
     curriculum:
         dims:
             start: 1
@@ -39,7 +41,7 @@ training:
             inc: 0
             interval: 500001
 
-out_dir: ../models/kernel_linear_regression
+out_dir: ../models/kernel_linear_regression_2
 
 wandb:
     name: "chebyshev_linear_regression_toy"
