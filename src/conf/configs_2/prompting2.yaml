@@ -9,6 +9,7 @@ model:
   positional_encodings: False
 out_dir: /global/scratch/users/mortsven/wandb/models/soft_prompting_3_2
 training:
+  resume_id: prompt2
   batch_size: 64
   curriculum:
     deg:
@@ -37,4 +38,4 @@ training:
     perturbation: 0.2
   train_steps: 2000000
 wandb:
-  name: chebyshev_linear_regression_toy
+  name: prompt2

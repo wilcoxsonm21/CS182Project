@@ -1,15 +1,20 @@
 inherit:
-- models/small-prompt.yaml
+- models/small-lora.yaml
 - wandb.yaml
 model:
   n_dims: 1
   n_positions: 131
   pretrained_model_dir: /global/scratch/users/mortsven/wandb/models/kernel_linear_regression/big_base_nopos
-  prompt_dim: 50
   positional_encodings: False
-out_dir: /global/scratch/users/mortsven/wandb/models/soft_prompting_3_2
+  lora_config:
+        r: 4 # rank
+        lora_alpha: 16
+        bias: none
+        lora_dropout: 0.0
+        target_modules: ["attn.c_attn"]
+out_dir: /global/scratch/users/mortsven/wandb/models/loras
 training:
-  resume_id: prompt15
+  resume_id: lora12
   batch_size: 64
   curriculum:
     deg:
@@ -34,10 +39,10 @@ training:
   task: chebyshev_kernel_linear_regression
   task_kwargs:
     basis_dim: 5
-    fixed_coeffs: 3
+    fixed_coeffs: 0
     highest_degree: 5
     lowest_degree: 5
     scale: 2.0
   train_steps: 2000000
 wandb:
-  name: prompt15
+  name: lora12

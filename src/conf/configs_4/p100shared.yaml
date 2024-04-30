@@ -1,15 +1,15 @@
 inherit:
-- models/small-prompt.yaml
+- models/standard.yaml
 - wandb.yaml
 model:
   n_dims: 1
   n_positions: 131
   pretrained_model_dir: /global/scratch/users/mortsven/wandb/models/kernel_linear_regression/big_base_nopos
-  prompt_dim: 50
+  prompt_dim: 100
   positional_encodings: False
 out_dir: /global/scratch/users/mortsven/wandb/models/soft_prompting_3_2
 training:
-  resume_id: prompt15
+  resume_id: 100promptshared
   batch_size: 64
   curriculum:
     deg:
@@ -31,13 +31,11 @@ training:
   keep_every_steps: 100000
   learning_rate: 5.0e-05
   save_every_steps: 1000
-  task: chebyshev_kernel_linear_regression
+  task: polynomial_shared_roots
   task_kwargs:
     basis_dim: 5
-    fixed_coeffs: 3
-    highest_degree: 5
-    lowest_degree: 5
-    scale: 2.0
+    degree: 5
+    perturbation: 0.1
   train_steps: 2000000
 wandb:
-  name: prompt15
+  name: 100promptshared
