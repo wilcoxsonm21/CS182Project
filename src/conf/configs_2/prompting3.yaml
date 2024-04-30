@@ -4,9 +4,10 @@ inherit:
 model:
   n_dims: 1
   n_positions: 131
-  pretrained_model_dir: /global/scratch/users/mwilcoxson/wandb/models/kernel_linear_regression_2/c8a12fe0-218e-4fdc-a29b-6eab36983e39
+  pretrained_model_dir: /global/scratch/users/mwilcoxson/wandb/models/soft_prompting_3_2/26a101b5-ef8a-45a8-9333-a1277d77596e
   prompt_dim: 50
-out_dir: /global/scratch/users/mwilcoxson/wandb/models/soft_prompting_3_2
+  steps: 500000
+out_dir: /global/scratch/users/mwilcoxson/wandb/models/soft_prompting_3_resume
 training:
   batch_size: 64
   curriculum:
@@ -34,6 +35,6 @@ training:
     basis_dim: 5
     degree: 5
     perturbation: 0.3
-  train_steps: 2000000
+  train_steps: 500000
 wandb:
   name: chebyshev_linear_regression_toy
