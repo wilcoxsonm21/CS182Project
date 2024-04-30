@@ -8,6 +8,10 @@ python3 ../generate_jobs_2.py --name batch3 --conda_env_name in-context-learning
 
 cd sbatch
 
+chmod +x batch1.sh
+chmod +x batch2.sh
+chmod +x batch3.sh
+
 sbatch batch1.sh
 sbatch batch2.sh
 sbatch batch3.sh
