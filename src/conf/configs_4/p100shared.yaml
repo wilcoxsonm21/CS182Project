@@ -1,5 +1,5 @@
 inherit:
-- models/standard.yaml
+- models/small-prompt.yaml
 - wandb.yaml
 model:
   n_dims: 1
