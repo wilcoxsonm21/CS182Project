@@ -2,19 +2,19 @@ inherit:
 - models/small-lora.yaml
 - wandb.yaml
 model:
+  lora_config:
+    bias: none
+    lora_alpha: 16
+    lora_dropout: 0.0
+    r: 4
+    target_modules:
+    - attn.c_attn
   n_dims: 1
   n_positions: 131
-  pretrained_model_dir: /global/scratch/users/mortsven/wandb/models/kernel_linear_regression/big_base_nopos
-  positional_encodings: False
-  lora_config:
-        r: 4 # rank
-        lora_alpha: 16
-        bias: none
-        lora_dropout: 0.0
-        target_modules: ["attn.c_attn"]
-out_dir: /global/scratch/users/mortsven/wandb/models/loras
+  positional_encodings: true
+  pretrained_model_dir: /global/scratch/users/mwilcoxson/wandb/models/kernel_linear_regression_2/c8a12fe0-218e-4fdc-a29b-6eab36983e39
+out_dir: /global/scratch/users/mwilcoxson/wandb/models/lora_rk_4_pos_enc
 training:
-  resume_id: lora19
   batch_size: 64
   curriculum:
     deg:
@@ -35,6 +35,7 @@ training:
   data: uniform
   keep_every_steps: 100000
   learning_rate: 5.0e-05
+  resume_id: lora19
   save_every_steps: 1000
   task: chebyshev_kernel_linear_regression
   task_kwargs:
