@@ -5,9 +5,9 @@ export SCRATCH=/global/scratch/users/$UNAME
 
 cd src
 
-python3 ../generate_jobs_2.py --name more_batch1 --conda_env_name in-context-learning3 python train.py --config conf/configs_3/prompting18.yaml,conf/configs_3/prompting19.yaml,
-python3 ../generate_jobs_2.py --name more_batch2 --conda_env_name in-context-learning3 python train.py --config conf/configs_3/prompting20.yaml,conf/configs_3/prompting21.yaml
-python3 ../generate_jobs_2.py --name more_batch3 --conda_env_name in-context-learning3 python train.py --config conf/configs_3/prompting22.yaml,conf/configs_3/prompting23.yaml
+python3 ../generate_jobs_2.py -j 2 --name more_batch1 --conda_env_name in-context-learning3 python train.py --config conf/configs_3/prompting18.yaml,conf/configs_3/prompting19.yaml,
+python3 ../generate_jobs_2.py -j 2 --name more_batch2 --conda_env_name in-context-learning3 python train.py --config conf/configs_3/prompting20.yaml,conf/configs_3/prompting21.yaml
+python3 ../generate_jobs_2.py -j 2 --name more_batch3 --conda_env_name in-context-learning3 python train.py --config conf/configs_3/prompting22.yaml,conf/configs_3/prompting23.yaml
 
 cd sbatch
 
