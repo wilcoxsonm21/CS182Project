@@ -83,10 +83,9 @@ def basic_plot(metrics, trivial=1.0, yhigh_lim=float('inf')):
     return fig, ax
 
 
-def collect_results(run_dir, df, valid_row=None, rename_eval=None, rename_model=None, smoothing=0, step=4000):
+def collect_results(run_dir, df, valid_row=None, rename_eval=None, rename_model=None, smoothing=0, step=-1, step2=-1):
     all_metrics = {}
     for _, r in df.iterrows():
-        print("Valid row?:", valid_row(r), r.task, r.run_id)
         if valid_row is not None and not valid_row(r):
             continue
 
@@ -94,12 +93,12 @@ def collect_results(run_dir, df, valid_row=None, rename_eval=None, rename_model=
         _, conf = get_model_from_run(run_path, only_conf=True)
 
         print(r.run_name, r.run_id)
-        metrics = get_run_metrics(run_path, skip_model_load=True, smoothing=smoothing, step=step)
-        print("Metrics:", metrics)
+        metrics = get_run_metrics(run_path, skip_model_load=True, smoothing=smoothing, step=step, step2=step2)
         for eval_name, results in sorted(metrics.items()):
             processed_results = {}
             print(eval_name)
             for model_name, m in results.items():
+                print(model_name)
                 if "gpt2" in model_name in model_name:
                     old_model_name = model_name
                     model_name = r.model

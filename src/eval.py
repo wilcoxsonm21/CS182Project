@@ -24,13 +24,15 @@ def get_model_from_run(run_path, step=-1, only_conf=False, device="cuda"):
         return None, conf
 
     model = models.build_model(conf.model, device=device)
-
+    print(model.name)
+    print(step)
     if step == -1:
         state_path = os.path.join(run_path, "state.pt")
         state = torch.load(state_path, map_location=torch.device(device))
         model.load_state_dict(state["model_state_dict"])
     else:
         model_path = os.path.join(run_path, f"model_{step}.pt")
+        print(model_path)
         state_dict = torch.load(model_path, map_location=torch.device(device))
         model.load_state_dict(state_dict)
 
@@ -53,7 +55,13 @@ def get_model_from_run(run_path, step=-1, only_conf=False, device="cuda"):
 
 
 def eval_batch(model, task_sampler, xs, include_noise=True, ground_truth_loss=False, smoothing=0, device="cuda"):
+    if torch.cuda.is_available() and model.name.split("_")[0] in ["gpt2", "lstm", "gpt2-soft-prompt",  "gpt2-hard-prompt"]:
+        device = "cuda"
+    else:
+        device = "cpu"
     task = task_sampler()
+    if device == "cuda":
+        model.to(device)
     assert include_noise == False
     perturbations = np.arange(-1 * smoothing, smoothing + 0.002, 0.002)
     predictions = torch.zeros(len(perturbations), xs.shape[0], xs.shape[1])
@@ -222,6 +230,7 @@ def eval_model(
         if not isinstance(model, models.TransformerModel):
             metrics = eval_batch(model, task_sampler, xs, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=0, device=device)
         else:
+            model.to("cuda")
             metrics = eval_batch(model, task_sampler, xs, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing, device=device)
         all_metrics.append(metrics)
 
@@ -250,6 +259,7 @@ def build_evals(conf):
     evaluation_kwargs = {}
 
     evaluation_kwargs["standard"] = {"prompting_strategy": "standard"}
+    evaluation_kwargs["standard"]["task_sampler_kwargs"] = conf.training.task_kwargs
     if task_name != "linear_regression":
         if task_name in ["relu_2nn_regression"]:
             evaluation_kwargs["linear_regression"] = {"task_name": "linear_regression"}
@@ -363,7 +373,7 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
 
 
 def get_run_metrics(
-    run_path, step, run_path_2=None, run_path_3=None, cache=True, skip_model_load=False, skip_baselines=False, include_noise=True, ground_truth_loss=False, smoothing=0, device="cuda"):
+    run_path, run_path_2=None, run_path_3=None, cache=True, skip_model_load=False, skip_baselines=False, include_noise=False, ground_truth_loss=False, smoothing=0, device="cuda", step=-1, step2=-1):
     model, conf = get_model_from_run(run_path, step, device=device)
     model.name += "_soft_prompt"
     transformer_model = model.eval()
@@ -372,11 +382,11 @@ def get_run_metrics(
 
     transformer_models = [transformer_model]
     if run_path_2 is not None:
-        model_2, conf_2 = get_model_from_run(run_path_2, step, device=device)
+        model_2, conf_2 = get_model_from_run(run_path_2, step2, device=device)
         transformer_model_2 = model_2.eval()
         transformer_models.append(transformer_model_2)
     if run_path_3 is not None:
-        model_3, conf_3 = get_model_from_run(run_path_3, step, device=device)
+        model_3, conf_3 = get_model_from_run(run_path_3, 5000000, device=device)
         model_3.name += "_0.5_noise"
         transformer_model_3 = model_3.eval()
         transformer_models.append(transformer_model_3)
@@ -398,6 +408,7 @@ def get_run_metrics(
         if checkpoint_created > cache_created:
             recompute = True
 
+    print([transformer_model.name for transformer_model in transformer_models])
     all_metrics = compute_evals_basis(transformer_models, evaluation_kwargs, save_path, recompute, include_noise=include_noise, ground_truth_loss=ground_truth_loss, smoothing=smoothing, device=device)
     print(all_metrics)
     return all_metrics
