@@ -1,0 +1,49 @@
+inherit:
+- models/small-lora.yaml
+- wandb.yaml
+model:
+  lora_config:
+    bias: none
+    lora_alpha: 16
+    lora_dropout: 0.0
+    r: 4
+    target_modules:
+    - attn.c_attn
+  n_dims: 1
+  n_positions: 131
+  positional_encodings: true
+  pretrained_model_dir: /global/scratch/users/mwilcoxson/wandb/models/kernel_linear_regression_2/c8a12fe0-218e-4fdc-a29b-6eab36983e39
+out_dir: /global/scratch/users/mwilcoxson/wandb/models/lora_rk_4_pos_enc_noise
+training:
+  batch_size: 64
+  curriculum:
+    deg:
+      end: 3
+      inc: 0
+      interval: 500001
+      start: 3
+    dims:
+      end: 1
+      inc: 1
+      interval: 2000
+      start: 1
+    points:
+      end: 31
+      inc: 1
+      interval: 1000
+      start: 31
+  data: uniform
+  keep_every_steps: 100000
+  learning_rate: 5.0e-05
+  resume_id: lora9
+  save_every_steps: 1000
+  task: chebyshev_kernel_linear_regression
+  task_kwargs:
+    basis_dim: 5
+    fixed_coeffs: 3
+    highest_degree: 5
+    lowest_degree: 5
+    scale: 1.0
+  train_steps: 2000000
+wandb:
+  name: lora9
