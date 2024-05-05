@@ -146,11 +146,17 @@ def get_relevant_baselines(task_name):
     models = [model_cls(**kwargs) for model_cls, kwargs in task_to_baselines[task_name]]
     return models
 
-def get_relevant_baselines_for_degree(degree):
-    task_for_degree =  [
-        (ChebyshevKernelLeastSquaresModel, {"basis_dim": degree}),
-        (ChebyshevKernelLeastSquaresModelWithRidge, {"basis_dim": degree}),
-        ]
+def get_relevant_baselines_for_degree(degree, noise):
+    if noise:
+        task_for_degree =  [
+            (ChebyshevKernelLeastSquaresModel, {"basis_dim": degree}),
+            (ChebyshevKernelLeastSquaresModelWithRidge, {"basis_dim": degree, "ridge": 0.5}),
+            ]
+    else:
+            task_for_degree =  [
+            (ChebyshevKernelLeastSquaresModel, {"basis_dim": degree}),
+            (ChebyshevKernelLeastSquaresModelWithRidge, {"basis_dim": degree}),
+            ]    
 
     models = [model_cls(**kwargs) for model_cls, kwargs in task_for_degree]
     return models

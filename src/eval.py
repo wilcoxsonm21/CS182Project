@@ -62,7 +62,6 @@ def eval_batch(model, task_sampler, xs, include_noise=True, ground_truth_loss=Fa
     task = task_sampler()
     if device == "cuda":
         model.to(device)
-    assert include_noise == False
     perturbations = np.arange(-1 * smoothing, smoothing + 0.002, 0.002)
     predictions = torch.zeros(len(perturbations), xs.shape[0], xs.shape[1])
     if ground_truth_loss:
@@ -349,7 +348,7 @@ def compute_evals_basis(transformer_models, evaluation_kwargs, save_path=None, r
     standard_args = evaluation_kwargs["standard"]
     for i in range(4, 12):
         metrics = {}
-        baselines =  get_relevant_baselines_for_degree(i)
+        baselines =  get_relevant_baselines_for_degree(i, noise=include_noise)
         baselines += transformer_models
         if "degree-" + str(i) in all_metrics and not recompute:
             metrics = all_metrics["degree-" + str(i)]

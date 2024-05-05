@@ -83,7 +83,7 @@ def basic_plot(metrics, trivial=1.0, yhigh_lim=float('inf')):
     return fig, ax
 
 
-def collect_results(run_dir, df, valid_row=None, rename_eval=None, rename_model=None, smoothing=0, step=-1, step2=-1):
+def collect_results(run_dir, df, valid_row=None, rename_eval=None, rename_model=None, smoothing=0, step=-1, step2=-1, include_noise=False):
     all_metrics = {}
     for _, r in df.iterrows():
         if valid_row is not None and not valid_row(r):
@@ -93,7 +93,7 @@ def collect_results(run_dir, df, valid_row=None, rename_eval=None, rename_model=
         _, conf = get_model_from_run(run_path, only_conf=True)
 
         print(r.run_name, r.run_id)
-        metrics = get_run_metrics(run_path, skip_model_load=True, smoothing=smoothing, step=step, step2=step2)
+        metrics = get_run_metrics(run_path, skip_model_load=True, smoothing=smoothing, step=step, step2=step2, include_noise=include_noise)
         for eval_name, results in sorted(metrics.items()):
             processed_results = {}
             print(eval_name)
