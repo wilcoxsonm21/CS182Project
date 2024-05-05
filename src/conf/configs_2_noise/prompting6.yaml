@@ -4,7 +4,7 @@ inherit:
 model:
   n_dims: 1
   n_positions: 131
-  positional_encodings: false
+  positional_encodings: true
   pretrained_model_dir: /global/scratch/users/mwilcoxson/wandb/models/kernel_linear_regression_2/c8a12fe0-218e-4fdc-a29b-6eab36983e39
   prompt_dim: 50
 out_dir: /global/scratch/users/mwilcoxson/wandb/models/soft_prompting_noise
