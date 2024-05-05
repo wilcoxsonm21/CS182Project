@@ -7,7 +7,7 @@ model:
   positional_encodings: true
   pretrained_model_dir: /home/mwilcoxson/Code/CS182Project/models/kernel_linear_regression/131-context-w-positional-embeddings
   prompt_dim: 50
-out_dir:  ../models/kernel_linear_regressio/test1 #/global/scratch/users/mwilcoxson/wandb/models/soft_prompting_noise
+out_dir:  /global/scratch/users/mwilcoxson/wandb/models/soft_prompting_noise
 training:
   batch_size: 64
   curriculum:
