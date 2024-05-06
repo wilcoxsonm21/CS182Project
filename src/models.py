@@ -31,7 +31,7 @@ def get_model_from_run(run_path, step=-1, only_conf=False, device="cuda"):
     if only_conf:
         return None, conf
 
-    model = build_model(conf.model)
+    model = build_model(conf.model, device=device)
 
     if step == -1:
         state_path = os.path.join(run_path, "state.pt")
@@ -46,6 +46,8 @@ def get_model_from_run(run_path, step=-1, only_conf=False, device="cuda"):
 def build_model(conf, device="cuda"):
 
     model = None
+
+    #print("Build model:", device)
 
     if conf.family == "gpt2":
         model = TransformerModel(
@@ -77,16 +79,17 @@ def build_model(conf, device="cuda"):
         #print(model)
     else:
         raise NotImplementedError
-    
+
+    print("Device:", device)
     if conf.family == "gpt2" and not conf.positional_encodings:
         print("NO POSITIONAL ENCODINGS!!!!!!!!!!!!!!!!!!!!!")
-        model._backbone.wte = EmptyLayer()
-        model._backbone.wpe = EmptyLayer()
+        model._backbone.wte = EmptyLayer(device=device)
+        model._backbone.wpe = EmptyLayer(device=device)
 
     elif not conf.positional_encodings:
         print("NO POSITIONAL ENCODINGS!!!!!!!!!!!!!!!!!!!!!")
-        model.transformer_model._backbone.wte = EmptyLayer()
-        model.transformer_model._backbone.wpe = EmptyLayer()
+        model.transformer_model._backbone.wte = EmptyLayer(device=device)
+        model.transformer_model._backbone.wpe = EmptyLayer(device=device)
 
     return model
 

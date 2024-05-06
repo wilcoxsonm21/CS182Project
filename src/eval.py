@@ -205,6 +205,7 @@ def eval_model(
        - num_eval_examples: total number of examples to evaluate on
        - **sampler_kwargs: remaining arguments to pass directly to the sampler
     """
+    assert num_eval_examples == 1280
     assert num_eval_examples % batch_size == 0
 
     #print(task_sampler_kwargs)

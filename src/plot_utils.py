@@ -71,11 +71,11 @@ def basic_plot(metrics, trivial=1.0, yhigh_lim=float('inf')):
         ax.fill_between(range(len(low)), low, high, alpha=0.3)
         color += 1
     ax.set_xlabel("in-context examples")
-    ax.set_ylabel("squared error")
+    ax.set_ylabel("mean squared error")
     #ax.set_xlim(-1, len(low) + 0.1)
     ax.set_ylim(-0.05, min(max_val*1.01, yhigh_lim))
 
-    legend = ax.legend(loc="upper left", bbox_to_anchor=(1, 1))
+    legend = ax.legend(loc="upper left")#, bbox_to_anchor=(1, 1))
     fig.set_size_inches(4, 3)
     for line in legend.get_lines():
         line.set_linewidth(3)
