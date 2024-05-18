@@ -3,3 +3,6 @@ __pycache__
 models.zip
 models
 old_models/
+old_confs/
+full_suite/
+pos_models/

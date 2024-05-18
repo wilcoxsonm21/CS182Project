@@ -5,10 +5,11 @@ model:
   n_dims: 1
   n_positions: 131
   positional_encodings: true
-  pretrained_model_dir: /global/scratch/users/mwilcoxson/wandb/models/kernel_linear_regression_2/c8a12fe0-218e-4fdc-a29b-6eab36983e39
+  pretrained_model_dir: /global/scratch/users/mortsven/wandb/models/kernel_linear_regression/base_model
   prompt_dim: 50
-out_dir: /global/scratch/users/mwilcoxson/wandb/models/soft_prompting_noise
+out_dir: /global/scratch/users/mortsven/wandb/models/noisy_stuff
 training:
+  resume_id: noisy3
   batch_size: 64
   curriculum:
     deg:
@@ -40,4 +41,4 @@ training:
     scale: 1.0
   train_steps: 2000000
 wandb:
-  name: prompt9
+  name: noisy3
