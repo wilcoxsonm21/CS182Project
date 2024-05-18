@@ -1,12 +1,11 @@
 inherit:
-- models/small-prompt.yaml
+- models/standard.yaml
 - wandb.yaml
 model:
   n_dims: 1
   n_positions: 131
   positional_encodings: true
   pretrained_model_dir: /global/scratch/users/mortsven/wandb/models/kernel_linear_regression/base_model
-  prompt_dim: 50
 out_dir: /global/scratch/users/mortsven/wandb/models/noisy_stuff
 training:
   resume_id: noisy0
