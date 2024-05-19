@@ -49,9 +49,9 @@ relevant_model_names = {
 def get_model_names_for_degree(degree):
     names = ["Transformer",
             "Transformer Curriculum",
-        "Chebyshev " + str(degree),
-        "Kernel Least Squares " + str(degree),
-        "Chebyshev Ridge " + str(degree),]
+        "Chebyshev",
+        "Kernel Least Squares"
+        "Chebyshev Ridge",]
     if degree < 11:
         names.append("Chebyshev Ridge 11")
     if degree > 1:
