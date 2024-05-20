@@ -101,7 +101,15 @@ def new_get_run_metrics(config, run_path: Path, step: int, device: str = "cuda",
 def baseline_data(train_conf_path: Path, include_noise=True, ground_truth_loss=False, smoothing=0, device="cuda"):
 
     config = get_config(train_conf_path)
-    degree = config.training.task_kwargs["degree"]
+    
+    degree = 5
+
+    if "degree" in config.training.task_kwargs:
+        degree = config.training.task_kwargs["degree"]
+    elif "basis_dim" in config.training.task_kwargs:
+        degree = config.training.task_kwargs["basis_dim"]
+    else:
+        raise ValueError("No degree or basis_dim in config")
 
     # Set configuration    
     evaluation_kwargs = build_evals(config)

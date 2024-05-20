@@ -54,7 +54,7 @@ def get_model_from_run(run_path, step=-1, only_conf=False, device="cuda"):
 
 def eval_batch(model, task_sampler, xs, include_noise=True, ground_truth_loss=False, smoothing=0, device="cuda"):
     task = task_sampler()
-    assert include_noise == False
+    #assert include_noise == False
     perturbations = np.arange(-1 * smoothing, smoothing + 0.002, 0.002)
     predictions = torch.zeros(len(perturbations), xs.shape[0], xs.shape[1])
     if ground_truth_loss:
