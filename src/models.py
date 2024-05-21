@@ -36,6 +36,7 @@ def get_model_from_run(run_path, step=-1, only_conf=False, device="cuda"):
     if step == -1:
         state_path = os.path.join(run_path, "state.pt")
         state = torch.load(state_path, torch.device(device))
+        print("Keys:", state.keys())
         model.load_state_dict(state["model_state_dict"])
     else:
         model_path = os.path.join(run_path, f"model_{step}.pt")
@@ -81,15 +82,19 @@ def build_model(conf, device="cuda"):
         raise NotImplementedError
 
     print("Device:", device)
-    if conf.family == "gpt2" and not conf.positional_encodings:
-        print("NO POSITIONAL ENCODINGS!!!!!!!!!!!!!!!!!!!!!")
-        model._backbone.wte = EmptyLayer(device=device)
-        model._backbone.wpe = EmptyLayer(device=device)
+    try:
+        if conf.family == "gpt2" and not conf.positional_encodings:
+            print("NO POSITIONAL ENCODINGS!!!!!!!!!!!!!!!!!!!!!")
+            model._backbone.wte = EmptyLayer(device=device)
+            model._backbone.wpe = EmptyLayer(device=device)
 
-    elif not conf.positional_encodings:
-        print("NO POSITIONAL ENCODINGS!!!!!!!!!!!!!!!!!!!!!")
-        model.transformer_model._backbone.wte = EmptyLayer(device=device)
-        model.transformer_model._backbone.wpe = EmptyLayer(device=device)
+        elif not conf.positional_encodings:
+            print("NO POSITIONAL ENCODINGS!!!!!!!!!!!!!!!!!!!!!")
+            model.transformer_model._backbone.wte = EmptyLayer(device=device)
+            model.transformer_model._backbone.wpe = EmptyLayer(device=device)
+    
+    except AttributeError:
+        print("No positional encodings attribute found, assuming positional encodings are present.")
 
     return model
 

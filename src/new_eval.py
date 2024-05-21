@@ -73,7 +73,11 @@ def new_get_model_from_run(config, run_path: Path, step, device="cuda") -> torch
     if step == -1:
         state_path = run_path / "state.pt"
         state = torch.load(state_path, map_location=torch.device(device))
-        model.load_state_dict(state["model_state_dict"])
+        #print("Keys:", state.keys())
+        try:
+            model.load_state_dict(state["model_state_dict"])
+        except KeyError:
+            model.load_state_dict(state)
     else:
         model_path = run_path / f"model_{step}.pt"
         state_dict = torch.load(model_path, map_location=torch.device(device))
