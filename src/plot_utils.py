@@ -82,9 +82,7 @@ def basic_plot(metrics, trivial=1.0, yhigh_lim=float('inf')):
 
     return fig, ax
 
-def basic_plot2(metrics, trivial=1.0, yhigh_lim=float('inf')):
-    fig, ax = plt.subplots(1, 1)
-
+def basic_plot2(ax, metrics, trivial=1.0, yhigh_lim=float('inf')):
     color = 0
     #ax.axhline(trivial, ls="--", color="gray")
     max_val = 0
@@ -95,17 +93,10 @@ def basic_plot2(metrics, trivial=1.0, yhigh_lim=float('inf')):
         high = vs["bootstrap_high"]
         ax.fill_between(range(len(low)), low, high, alpha=0.3)
         color += 1
-    ax.set_xlabel("in-context examples")
-    ax.set_ylabel("Mean Squared Error")
     #ax.set_xlim(-1, len(low) + 0.1)
     ax.set_ylim(-0.05, min(max_val*1.01, yhigh_lim))
 
-    legend = ax.legend()#, bbox_to_anchor=(1, 1))
-    #fig.set_size_inches(4, 3)
-    for line in legend.get_lines():
-        line.set_linewidth(3)
-
-    return fig, ax
+    return ax
 
 
 
